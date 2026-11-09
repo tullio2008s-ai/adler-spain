@@ -86,6 +86,7 @@ li{margin:4px 0}
     <button onclick="resetData()">⚠ Reset data (admin only)</button>
     <button onclick="saveJSON()">⬇ Save backup (.json)</button>
     <button onclick="document.getElementById('fi').click()">⬆ Load data</button>
+    <button onclick="loadSeed()">🔐 Load initial data</button>
     <button onclick="openPaste()">⌨ Paste data (JSON text)</button>
     <input id="fi" type="file" accept=".json" style="display:none" onchange="loadJSON(this)">
   </div>
@@ -100,23 +101,23 @@ li{margin:4px 0}
 <script>
 /* ======================= EMPTY STATE (no company data in the code) ======================= */
 const PL=["TNG","ZGZ"],PN={TNG:"Tangier",ZGZ:"Zaragoza"};
-const FLAGS=()=>({dep:false,maint:false,energy:false,cassa:false,indirect:false});
-const P0=()=>({days:248,opDays:248,shifts:3,hoursShift:8,paidHours:1744,pause:0,grossYear:0,social:0,energyPrice:0,energyUse:.75,maintPct:.577,burden:0,cassa:0,oee:.85,scrap:.03,ga:.08,profit:.08,produttivita:0,imposte:0,depExcl:false});
-function build(){return{name:"ADLER product cost",plants:{TNG:{name:"Tangier",params:P0(),flags:FLAGS(),machines:[]},ZGZ:{name:"Zaragoza",params:P0(),flags:FLAGS(),machines:[]}},materials:[],products:[],notes:{},guide:{excel:[],points:[]},check:null}}
+const FLAGS=()=>({dep:false,maint:false,energy:false,cassa:false,indirect:false,burdenManual:false});
+const P0=()=>({days:248,opDays:248,shifts:3,hoursShift:8,paidHours:1744,pause:0,grossYear:0,social:0,energyPrice:0,energyUse:.75,maintPct:.577,burden:0,cassa:0,oee:.85,scrap:.03,ga:.08,profit:.08,produttivita:0,imposte:0,depExcl:false,burdenMode:"manual",maintMode:"manual"});
+function build(){return{name:"ADLER product cost",plants:{TNG:{name:"Tangier",params:P0(),flags:FLAGS(),machines:[],dlBase:0,items:[]},ZGZ:{name:"Zaragoza",params:P0(),flags:FLAGS(),machines:[],dlBase:0,items:[]}},materials:[],products:[],notes:{},guide:{excel:[],points:[]},check:null}}
 /* fonti per parametro: [chiave, etichetta, UM, fonte Tangeri, fonte Zaragoza, nota] */
 const SRC={BC:["Business case","b-bc"],AD:["Adler file","b-ad"],ES:["Estimate · to validate","b-es"],DE:["Calculated","b-de"]};
 const NOTE=k=>(S.notes&&S.notes[k])||["ES","ES",""];
 const PDEF=[
 ["Calendar and machine availability",[["days","Machine production days / year","days"],["shifts","Shifts / day","no."],["hoursShift","Hours / shift","h"],["_avail","Available machine hours / year","h","= days × shifts × hours"]]],
 ["Labour cost",[["grossYear","Gross annual salary, direct operator","€"],["social","Employer social charges","%"],["opDays","Operator working days / year","days"],["paidHours","Paid hours per operator / year","h"],["pause","Non-productive breaks / day","h"],["_net","Net presence hours / month","h","= (paid hours ÷ days − breaks) × days ÷ 12"],["_mod","Direct labour hourly cost (DL)","€/h","= gross × (1 + charges) ÷ (net hours × 12)"],["cassa","Labour inefficiency surcharge","%"]]],
-["Energy and maintenance",[["energyPrice","Electricity cost","€/kWh"],["energyUse","Energy utilisation factor","%"],["maintPct","Maintenance (% of hourly depreciation)","%"]]],
-["Indirect costs and mark-up",[["burden","Burden rate (indirect ÷ DL)","%"],["oee","Default efficiency / OEE","%"],["scrap","Scrap on subtotal (materials + conversion)","%"],["profit","Profit","%"],["ga","G&A","%"],["produttivita","Productivity","%"],["imposte","Taxes","%"]]]];
+["Energy and maintenance",[["energyPrice","Electricity cost","€/kWh"],["energyUse","Energy utilisation factor","%"],["maintPct","Maintenance – manual value (% of hourly depreciation)","%"],["_maintEff","Maintenance % IN USE","%","= manual value, or computed from the burden split"]]],
+["Indirect costs and mark-up",[["burden","Burden rate – manual value (indirect ÷ DL)","%"],["_burdenEff","Burden rate IN USE","%","= manual value, or computed from the burden split (page “Burden & rates”)"],["oee","Default efficiency / OEE","%"],["scrap","Scrap on subtotal (materials + conversion)","%"],["profit","Profit","%"],["ga","G&A","%"],["produttivita","Productivity","%"],["imposte","Taxes","%"]]]];
 const PCT=new Set(["social","energyUse","maintPct","burden","cassa","oee","scrap","profit","ga","produttivita","imposte"]);
-const FDEF=[["dep","Depreciation ÷ UR","Adler: no"],["maint","Maintenance ÷ UR","Adler: no"],["energy","Energy ÷ UR","Adler: no"],["cassa","Apply inefficiency surcharge to DL","Adler: yes"],["indirect","Indirect (burden) ÷ UR","Adler: yes – penalises under-loaded machines; enable only with the complete product portfolio loaded"]];
+const FDEF=[["dep","Depreciation ÷ UR","Adler: no"],["maint","Maintenance ÷ UR","Adler: no"],["energy","Energy ÷ UR","Adler: no"],["cassa","Apply inefficiency surcharge to DL","Adler: yes"],["indirect","Indirect (burden) ÷ UR","Adler: yes – penalises under-loaded machines; enable only with the complete product portfolio loaded"],["burdenManual","Apply burden also to manual (DL-only) operations","Adler: no (manual steps use direct labour cost only)"]];
 
 /* ======================= MOTORE ======================= */
 let S=build();
-let page="dash",selProd=null,tab="TNG",mpl="TNG",uid=1;
+let page="dash",selProd=null,tab="TNG",mpl="TNG",bpl="TNG",uid=1;
 const nid=p=>p+Date.now().toString(36)+(uid++);
 const num=v=>{const x=parseFloat(v);return isFinite(x)?x:0};
 const fm=(v,d=2)=>isFinite(v)?v.toLocaleString("en-GB",{minimumFractionDigits:d,maximumFractionDigits:d}):"—";
@@ -128,21 +129,31 @@ function derived(P){const avail=num(P.days)*num(P.shifts)*num(P.hoursShift);
 function guOf(m,pl,st=S){if(m.guMode==="manual")return num(m.guManual);
  let sec=0;for(const p of st.products){const v=p.v[pl];if(!v)continue;for(const o of v.ops)if(o.machineId===m.id)sec+=num(v.volume)*num(o.cycle)/(num(o.cav)||1)}
  const avail=derived(st.plants[pl].params).avail*3600*(num(m.qty)||1);return avail?sec/avail:0}
-function mrate(m,pl,st=S){const P=st.plants[pl].params,F=st.plants[pl].flags,D=derived(P),gu=guOf(m,pl,st),d=gu>0?gu:1,r={gu};
+const CLS={BURDEN:"Burden",GA:"G&A",MAINT:"Maintenance",ENERGY:"Energy (info)",DL:"Direct labour (base)",EXCL:"Excluded"};
+function depAnnual(pl,st=S){const p=st.plants[pl],av=derived(p.params).avail;return p.machines.reduce((a,m)=>a+num(m.qty)*num(m.price)*(1-num(m.resid))*av/(num(m.life)||1),0)}
+function burdenCalc(pl,st=S){const p=st.plants[pl],t={BURDEN:0,GA:0,MAINT:0,ENERGY:0,DL:0,EXCL:0};for(const i of (p.items||[]))t[i.cls]=(t[i.cls]||0)+num(i.annual);
+ const rev=st.products.reduce((a,x)=>a+(x.v[pl]?num(x.v[pl].price)*num(x.v[pl].volume):0),0),dep=depAnnual(pl,st),dl=num(p.dlBase);
+ return{t,rev,dep,dl,burdenRate:dl>0?t.BURDEN/dl:NaN,maintRate:dep>0?t.MAINT/dep:NaN,gaPct:rev>0?t.GA/rev:NaN}}
+function effP(pl,st=S){const p=st.plants[pl],P=p.params,B=burdenCalc(pl,st);let burden=num(P.burden),maint=num(P.maintPct);
+ if(P.burdenMode==="split"&&isFinite(B.burdenRate))burden=B.burdenRate;if(P.maintMode==="split"&&isFinite(B.maintRate))maint=B.maintRate;return{burden,maint,B}}
+function mrate(m,pl,st=S){const P=st.plants[pl].params,F=st.plants[pl].flags,D=derived(P),E=effP(pl,st),gu=guOf(m,pl,st),d=gu>0?gu:1,r={gu};
  const G0=num(m.price)*(1-num(m.resid))/(num(m.life)||1);
- r.G=F.dep?G0/d:G0;r.I=num(P.maintPct)*(F.maint?G0/d:G0);
+ r.G=F.dep?G0/d:G0;r.I=E.maint*(F.maint?G0/d:G0);
  const M0=num(m.kw)*num(P.energyUse)*num(P.energyPrice);r.M=F.energy?M0/d:M0;
- r.R=num(m.workers)*D.mod*(F.cassa?1+num(P.cassa):1);r.T=r.R*num(P.burden)/(F.indirect?d:1);
+ r.R=num(m.workers)*D.mod*(F.cassa?1+num(P.cassa):1);r.T=r.R*E.burden/(F.indirect?d:1);
  r.V=r.G+r.I+r.M+r.R+r.T;r.X=r.V-(P.depExcl?r.G:0);r.Y=r.X/60;return r}
+function opCalc(o,pl,st=S){const P=st.plants[pl].params,F=st.plants[pl].flags,D=derived(P),E=effP(pl,st);
+ const m=o.machineId==="MOD"?null:st.plants[pl].machines.find(x=>x.id===o.machineId),mr=m?mrate(m,pl,st):null;
+ const hasCrew=o.crew!==undefined&&o.crew!==null&&o.crew!=="";let G=0,I=0,M=0,R=0,T=0;
+ if(mr){G=P.depExcl?0:mr.G;I=mr.I;M=mr.M;if(hasCrew){R=num(o.crew)*D.mod*(F.cassa?1+num(P.cassa):1);T=R*E.burden/(F.indirect?(mr.gu>0?mr.gu:1):1)}else{R=mr.R;T=mr.T}}
+ else{R=hasCrew?num(o.crew)*D.mod*(F.cassa?1+num(P.cassa):1):D.mod;T=F.burdenManual?R*E.burden:0}
+ const L=num(o.cycle)/(num(o.eff)||1)/(num(o.cav)||1),rate=G+I+M+R+T,f=L/3600;
+ const heads=hasCrew?num(o.crew):(m?num(m.workers):num(o.cav));
+ return{L,rate,N:f*rate,G,I,M,R,T,nG:f*G,nI:f*I,nM:f*M,nR:f*R,nT:f*T,heads,hasCrew,mname:m?m.name:"Manual DL",gu:mr?mr.gu:0}}
 function pcalc(p,pl,st=S){const P=st.plants[pl].params,D=derived(P),v=p.v[pl],c={bomRows:[],opRows:[],mat:0,conv:0};
  for(const b of p.bom){const m=st.materials.find(x=>x.id===b.matId);const r=m?num(m.cost[pl])*num(b.qty):0;c.bomRows.push(r);c.mat+=r}
- for(const o of v.ops){const m=o.machineId==="MOD"?null:st.plants[pl].machines.find(x=>x.id===o.machineId);
-  const L=num(o.cycle)/(num(o.eff)||1)/(num(o.cav)||1);let rate;
-  if(o.crew!==undefined&&o.crew!==null&&o.crew!==""){ // crew defined (CIS): machine part without its generic labour + crew-based labour
-   const F=st.plants[pl].flags,mr=m?mrate(m,pl,st):null,lab=num(o.crew)*D.mod*(F.cassa?1+num(P.cassa):1);
-   rate=(mr?mr.X-mr.R-mr.T:0)+lab+(m?lab*num(P.burden)/(F.indirect?(mr.gu>0?mr.gu:1):1):0)}
-  else rate=m?mrate(m,pl,st).X:D.mod;
-  const N=L*rate/3600;c.opRows.push({L,rate,N});c.conv+=N}
+ c.cG=c.cI=c.cM=c.cR=c.cT=0;c.heads=0;c.dlMin=0;
+ for(const o of v.ops){const r=opCalc(o,pl,st);c.opRows.push(r);c.conv+=r.N;c.cG+=r.nG;c.cI+=r.nI;c.cM+=r.nM;c.cR+=r.nR;c.cT+=r.nT;c.heads+=r.heads;c.dlMin+=r.heads*r.L/60}
  c.sub=c.mat+c.conv;c.scrap=c.sub*num(P.scrap);c.log=num(v.logistic);c.ic=c.sub+c.scrap+c.log;
  const mk=num(P.profit)+num(P.ga)+num(P.produttivita)+num(P.imposte);c.mk=mk;c.markup=c.ic/(1-mk)-c.ic;c.calc=c.ic+c.markup;
  const sp=num(v.price);c.hasPrice=sp>0;c.margin=sp>0?sp-c.ic:NaN;c.marginPct=sp>0?c.margin/sp:NaN;
@@ -161,16 +172,25 @@ const inC=(p,v)=>`<input type="checkbox" ${v?"checked":""} onchange="setPath('${
 const O=(e,cls="")=>`<td class="out ${cls}" data-c="${e.replace(/"/g,"&quot;")}"></td>`;
 const S_=(e,cls="")=>`<span class="${cls}" data-c="${e.replace(/"/g,"&quot;")}"></span>`;
 function refresh(){document.querySelectorAll("[data-c]").forEach(e=>{try{e.innerHTML=eval(e.dataset.c)}catch(x){e.innerHTML="—"}})}
-const PAGES=[["dash","▦","Overview"],["inp","⚙","Basic inputs"],["mr","🏭","Machines & processes"],["mat","▤","Materials"],["prd","📦","Products"],["gui","✔","Guide & checks"]];
+const PAGES=[["dash","▦","Overview"],["inp","⚙","Basic inputs"],["bur","⚖","Burden & rates"],["mr","🏭","Machines & processes"],["mat","▤","Materials"],["prd","📦","Products"],["gui","✔","Guide & checks"]];
 function render(keep){
  document.getElementById("nav").innerHTML=PAGES.map(([k,i,t])=>`<button class="nv ${(page===k||(page==="pd"&&k==="prd"))?"on":""}" onclick="go('${k}')"><span>${i}</span>${t}</button>`).join("");
- const T={dash:"Overview · Tangier vs Zaragoza",inp:"Basic inputs",mr:"Machines & processes · machine rate",mat:"Materials master",prd:"Products",pd:"Product sheet",gui:"Guide & checks"};
+ const T={dash:"Overview · Tangier vs Zaragoza",inp:"Basic inputs",bur:"Burden split & hourly rates",mr:"Machines & processes · machine rate",mat:"Materials master",prd:"Products",pd:"Product sheet",gui:"Guide & checks"};
  document.getElementById("title").textContent=T[page];
- document.getElementById("main").innerHTML={dash:pageDash,inp:pageInp,mr:pageMR,mat:pageMat,prd:pagePrd,pd:pagePD,gui:pageGui}[page]();refresh();if(readonly())document.querySelectorAll("#main input,#main select,#main button.btn:not([data-ok])").forEach(e=>e.disabled=true);if(!keep)window.scrollTo(0,0)}
+ document.getElementById("main").innerHTML={dash:pageDash,inp:pageInp,bur:pageBur,mr:pageMR,mat:pageMat,prd:pagePrd,pd:pagePD,gui:pageGui}[page]();refresh();if(readonly())document.querySelectorAll("#main input,#main select,#main button.btn:not([data-ok])").forEach(e=>e.disabled=true);if(!keep)window.scrollTo(0,0)}
 function go(k){page=k;render()}
 function openProd(id,t){selProd=id;if(t)tab=t;page="pd";render()}
 function resetData(){if(ME&&ME.ruolo!=="admin"){alert("Only the administrator can reset the data");return}if(!confirm("WARNING: this erases the SHARED data of all users. Continue?"))return;if(!confirm("Confirm again: this cannot be undone (only the history log remains)."))return;S=build();selProd=null;save();go("dash")}
 function saveJSON(){const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([JSON.stringify(S,null,1)],{type:"application/json"}));a.download="adler_dati_backup.json";a.click()}
+async function loadSeed(){if(readonly()){alert("Read-only account");return}
+ const pw=window.prompt("Passphrase of the initial data:");if(!pw)return;let x;
+ try{const j=await (await fetch("seed.enc.json?"+Date.now())).json(),b=t=>Uint8Array.from(atob(t),c=>c.charCodeAt(0));
+  const km=await crypto.subtle.importKey("raw",new TextEncoder().encode(pw.trim()),"PBKDF2",false,["deriveKey"]);
+  const key=await crypto.subtle.deriveKey({name:"PBKDF2",salt:b(j.salt),iterations:j.iter,hash:"SHA-256"},km,{name:"AES-GCM",length:256},false,["decrypt"]);
+  x=JSON.parse(new TextDecoder().decode(await crypto.subtle.decrypt({name:"AES-GCM",iv:b(j.iv)},key,b(j.data))))}
+ catch(e){alert("Wrong passphrase, or the data file is not available");return}
+ if(API&&Object.keys(REM).length&&!confirm("The database already contains data: the import REPLACES it for everyone. Continue?"))return;
+ S=Object.assign(build(),x);selProd=null;loaded=true;save();go("dash")}
 function openPaste(){const b=document.getElementById("pastebox");b.classList.remove("hid");document.getElementById("pastetxt").value="";document.getElementById("pastetxt").focus()}
 function closePaste(){document.getElementById("pastebox").classList.add("hid")}
 function doPaste(){if(readonly()){alert("Read-only account");return}try{const x=JSON.parse(document.getElementById("pastetxt").value);if(!x.plants||!x.products)throw 0;if(API&&Object.keys(REM).length&&!confirm("The database already contains data: the import REPLACES it for everyone. Continue?"))return;S=Object.assign(build(),x);selProd=null;loaded=true;closePaste();save();go("dash")}catch(e){alert("Invalid JSON text")}}
@@ -178,8 +198,8 @@ function loadJSON(el){const f=el.files[0];if(!f)return;if(readonly()){alert("Rea
 
 /* ======================= PAGINE ======================= */
 const COL={mat:"#2563eb",conv:"#0d9488",scrap:"#f59e0b",log:"#8b5cf6",mk:"#94a3b8"};
-function stack(c){const t=c.calc||1;const seg=[["Materials",c.mat,COL.mat],["Conversion",c.conv,COL.conv],["Scrap",c.scrap,COL.scrap],["Logistics",c.log,COL.log],["Mark-up (profit + G&A)",c.markup,COL.mk]];
- return `<div class="stack">${seg.map(s=>`<div style="width:${Math.max(0,s[1]/t*100)}%;background:${s[2]}">${s[1]/t>.07?fm(s[1]/t*100,0)+"%":""}</div>`).join("")}</div><div class="legend">${seg.map(s=>`<span><i style="background:${s[2]}"></i>${s[0]} ${fm(s[1],3)} €</span>`).join("")}</div>`}
+function stack(c){const t=c.calc||1;const seg=[["Materials",c.mat,COL.mat],["Depreciation",c.cG,"#0f766e"],["Maintenance",c.cI,"#14b8a6"],["Energy",c.cM,"#5eead4"],["Direct labour",c.cR,"#0369a1"],["Burden",c.cT,"#7c3aed"],["Scrap",c.scrap,COL.scrap],["Logistics",c.log,"#a78bfa"],["Mark-up (profit + G&A)",c.markup,COL.mk]];
+ return `<div class="stack">${seg.map(s=>`<div style="width:${Math.max(0,s[1]/t*100)}%;background:${s[2]}" title="${s[0]} ${fm(s[1],3)} €">${s[1]/t>.06?fm(s[1]/t*100,0)+"%":""}</div>`).join("")}</div><div class="legend">${seg.map(s=>`<span><i style="background:${s[2]}"></i>${s[0]} ${fm(s[1],3)} €</span>`).join("")}</div>`}
 const stackOf=(ix,pl)=>`stack(pcalc(S.products[${ix}],'${pl}'))`;
 const tabs=()=>`<div class="tabs">${[["TNG","Tangier","T"],["ZGZ","Zaragoza","Z"],["CMP","Comparison","C"]].map(x=>`<button class="${tab===x[0]?"on ":""}${x[2]}" onclick="tab='${x[0]}';render()">${x[1]}</button>`).join("")}</div>`;
 
@@ -202,7 +222,7 @@ function exportCSV(){const rows=[["Code","Description","Customer","Project","Pla
  const a=document.createElement("a");a.href=URL.createObjectURL(new Blob(["﻿"+rows.map(r=>r.map(x=>`"${String(x??"").replace(/"/g,'""')}"`).join(";")).join("\n")],{type:"text/csv"}));a.download="product_costs.csv";a.click()}
 
 function pageInp(){
- const calc={_avail:pl=>`fm(derived(S.plants.${pl}.params).avail,0)+' h'`,_net:pl=>`fm(derived(S.plants.${pl}.params).net,2)+' h'`,_mod:pl=>`fm(derived(S.plants.${pl}.params).mod,2)+' €/h'`};
+ const calc={_avail:pl=>`fm(derived(S.plants.${pl}.params).avail,0)+' h'`,_net:pl=>`fm(derived(S.plants.${pl}.params).net,2)+' h'`,_mod:pl=>`fm(derived(S.plants.${pl}.params).mod,2)+' €/h'`,_burdenEff:pl=>`fp(effP('${pl}').burden)`,_maintEff:pl=>`fp(effP('${pl}').maint)`};
  let h=`<div class="info">Basic data of the two plants side by side. Values come from the business case and the Adler file; fields tagged <span class="badge b-es">Estimate · to validate</span> are assumptions. Every change instantly recalculates machines and products.</div>`;
  for(const [sec,rows] of PDEF){h+=`<div class="card"><h2>${sec}</h2><table style="margin-top:8px"><tr><th>Parameter</th><th class="n t" style="width:150px">Tangier</th><th class="n z" style="width:150px">Zaragoza</th><th>Unit</th><th>Source T / Z</th><th>Note</th></tr>`;
   for(const [k,l,u,dn] of rows){const d=k[0]==="_";const [sT,sZ,n0]=d?["DE","DE",""]:NOTE(k),n=n0||dn||"";
@@ -263,7 +283,7 @@ function pagePD(){const p=S.products.find(x=>x.id===selProd);if(!p){page="prd";r
   const T=`pcalc(S.products[${ix}],'TNG')`,Z=`pcalc(S.products[${ix}],'ZGZ')`;
   h+=`<div class="card"><h2>Tangier vs Zaragoza comparison (€/pc)</h2><p class="sub">Positive Δ = Zaragoza more expensive. The two selling prices and volumes are entered in the respective tabs.</p>
   <table style="max-width:820px"><tr><th></th><th class="n t">Tangier</th><th class="n z">Zaragoza</th><th class="n">Δ ZGZ − TNG</th></tr>
-  ${row("Raw materials / components","mat")}${row("Conversion (machine rate × times)","conv")}${row("Subtotal","sub","tot")}${row("Scrap","scrap")}${row("Logistics","log")}${row("INDUSTRIAL COST","ic","tot")}${row("Mark-up","markup")}${row("PRICE CALCULATED FROM BREAKDOWN","calc","tot")}
+  ${row("Raw materials / components","mat")}${row("Conversion (machine rate × times)","conv")}${row("   depreciation","cG")}${row("   maintenance","cI")}${row("   energy","cM")}${row("   direct labour","cR")}${row("   burden","cT")}${row("Operators in the route","heads")}${row("Direct labour minutes / pc","dlMin")}${row("Subtotal","sub","tot")}${row("Scrap","scrap")}${row("Logistics","log")}${row("INDUSTRIAL COST","ic","tot")}${row("Mark-up","markup")}${row("PRICE CALCULATED FROM BREAKDOWN","calc","tot")}
   <tr><td>Selling price entered</td>${O(`${T}.hasPrice?fm(S.products[${ix}].v.TNG.price,4):'—'`,"t")}${O(`${Z}.hasPrice?fm(S.products[${ix}].v.ZGZ.price,4):'—'`,"z")}<td></td></tr>
   <tr><td>Margin (price − industrial cost)</td>${O(`${T}.hasPrice?fm(${T}.margin,4):'—'`,"t")}${O(`${Z}.hasPrice?fm(${Z}.margin,4):'—'`,"z")}<td></td></tr>
   <tr><td>Margin %</td>${O(`fp(${T}.marginPct)`,"t")}${O(`fp(${Z}.marginPct)`,"z")}<td></td></tr></table></div>
@@ -275,6 +295,11 @@ function pagePD(){const p=S.products.find(x=>x.id===selProd);if(!p){page="prd";r
  <div><span>Margin (price − ind. cost)</span><b>${S_(`${C}.hasPrice?fm(${C}.margin,4)+' €':'enter price'`)}</b><small>${S_(`fp(${C}.marginPct)+' of price'`)}</small></div>
  <div><span>Margin after G&A</span><b>${S_(`${C}.hasPrice?fm(${C}.afterGA,4)+' €':'—'`)}</b><small>${S_(`fp(${C}.afterGApct)`)}</small></div>
  <div><span>Annual margin</span><b>${S_(`${C}.hasPrice?fm(${C}.margin*${num(v.volume)}/1000,1)+' k€':'—'`)}</b><small>volume × margin</small></div></div>
+ <div class="kpi"><div><span>Operators in the route</span><b>${S_(`fm(${C}.heads,2)`)}</b><small>sum of the crew of each process</small></div>
+ <div><span>Direct labour time / pc</span><b>${S_(`fm(${C}.dlMin,2)+' min'`)}</b><small>operators × reference time</small></div>
+ <div><span>Direct labour / pc</span><b>${S_(`fm(${C}.cR,3)+' €'`)}</b><small>${S_(`fp(${C}.cR/${C}.ic)+' of industrial cost'`)}</small></div>
+ <div><span>Burden / pc</span><b>${S_(`fm(${C}.cT,3)+' €'`)}</b><small>${S_(`fp(${C}.cT/${C}.ic)+' of industrial cost'`)}</small></div>
+ <div><span>Machine costs / pc</span><b>${S_(`fm(${C}.cG+${C}.cI+${C}.cM,3)+' €'`)}</b><small>depreciation + maintenance + energy</small></div></div>
  <div class="card"><h2>Structure of the calculated price · ${PN[pl]}</h2><div data-c="stack(${C})" style="margin-top:10px"></div></div>`+bomCard(pl)+
  `<div class="card"><h2>2 · Cycle times and conversion · ${PN[pl]}</h2><p class="sub">Reference time = cycle time ÷ efficiency ÷ cavities (or people). €/pc = ref. time × rate €/h ÷ 3600. For manual work choose “Manual DL” (operator hourly cost of ${PN[pl]}). <b>Crew</b>: if filled (e.g. from the CIS), the operation is costed as machine (depreciation + maintenance + energy) + crew × DL (+ burden on machine stations), ignoring the machine’s generic operators; leave empty to use the machine rate as is (then “people” divide the time for manual work). Machines are those of the plant (Machines page).</p>
  <table><tr><th>Operation</th><th>Machine</th><th class="n">Cavities / people</th><th class="n">Crew (operators)</th><th class="n">Cycle time (s)</th><th class="n">Efficiency %</th><th class="n">Ref. time (s)</th><th class="n">Rate €/h</th><th class="n">€ / pc</th><th class="n">% conv.</th><th></th></tr>`;
@@ -282,6 +307,11 @@ function pagePD(){const p=S.products.find(x=>x.id===selProd);if(!p){page="prd";r
   h+=`<tr class="${o.est?"est":""}"><td style="min-width:220px">${inT(q+"desc",o.desc)}</td><td style="min-width:230px"><select onchange="setPath('${q}machineId',this.value);render()"><option value="MOD" ${o.machineId==="MOD"?"selected":""}>Manual DL</option>${S.plants[pl].machines.map(m=>`<option value="${m.id}" ${m.id===o.machineId?"selected":""}>${m.name}</option>`).join("")}</select></td><td>${inN(q+"cav",o.cav)}</td><td>${inCrew(q+"crew",o.crew)}</td><td>${inN(q+"cycle",o.cycle)}</td><td>${inP(q+"eff",o.eff)}</td>${O(`fm(${C}.opRows[${i}].L,2)`)}${O(`fm(${C}.opRows[${i}].rate,2)`)}${O(`fm(${C}.opRows[${i}].N,4)`,"tot")}${O(`fp(${C}.opRows[${i}].N/${C}.conv)`)}<td><button class="btn del" onclick="S.products[${ix}].v.${pl}.ops.splice(${i},1);save();render()">✕</button></td></tr>`});
  h+=`<tr class="tot"><td colspan="8">Total conversion</td>${O(`fm(${C}.conv,4)`,"tot")}<td></td><td></td></tr></table>
  <div class="row"><button class="btn sec" onclick="addOp(${ix},'${pl}')">+ Operation</button><button class="btn sec" onclick="copyOps(${ix},'${other}','${pl}')">Copy operations from ${PN[other]}</button></div></div>
+ <div class="card"><h2>2b · Hourly rate of each process and cost per piece by component · ${PN[pl]}</h2><p class="sub">Each process works on its own hourly rate: <b>rate €/h = depreciation + maintenance + energy + direct labour (operators × DL €/h) + burden (direct labour × burden rate)</b>. Cost per piece = reference time × rate ÷ 3600, split by component.</p>
+ <table><tr><th rowspan="2">Operation</th><th rowspan="2">Machine</th><th class="n" rowspan="2">Operators</th><th class="n" rowspan="2">Ref. time (s)</th><th colspan="6" class="n" style="text-align:center">Hourly rate (€/h)</th><th colspan="6" class="n" style="text-align:center">Cost per piece (€)</th><th rowspan="2" style="min-width:140px">Composition</th></tr>
+ <tr><th class="n">Depr.</th><th class="n">Maint.</th><th class="n">Energy</th><th class="n">Labour</th><th class="n">Burden</th><th class="n">Rate</th><th class="n">Depr.</th><th class="n">Maint.</th><th class="n">Energy</th><th class="n">Labour</th><th class="n">Burden</th><th class="n">Total</th></tr>
+ ${v.ops.map((o,i)=>{const R_=`${C}.opRows[${i}]`;return `<tr><td>${esc(o.desc)}</td><td>${esc(S.plants[pl].machines.find(x=>x.id===o.machineId)?.name||"Manual DL")}</td><td class="n">${S_(`fm(${R_}.heads,2)`)}</td><td class="n">${S_(`fm(${R_}.L,1)`)}</td>${["G","I","M","R","T"].map(k=>O(`fm(${R_}.${k},2)`)).join("")}${O(`fm(${R_}.rate,2)`,"tot")}${["nG","nI","nM","nR","nT"].map(k=>O(`fm(${R_}.${k},4)`)).join("")}${O(`fm(${R_}.N,4)`,"tot")}<td data-c="${("miniBar("+R_+")").replace(/"/g,"&quot;")}"></td></tr>`}).join("")}
+ <tr class="tot"><td colspan="2">Total</td>${O(`fm(${C}.heads,2)`,"tot")}<td></td><td colspan="6"></td>${["cG","cI","cM","cR","cT"].map(k=>O(`fm(${C}.${k},4)`,"tot")).join("")}${O(`fm(${C}.conv,4)`,"tot")}<td></td></tr></table></div>
  <div class="card"><h2>3 · From cost to price · ${PN[pl]}</h2><table style="max-width:640px">
  ${[["Raw materials / components","mat"],["Conversion","conv"],["Subtotal","sub","tot"],["Scrap "+fp(S.plants[pl].params.scrap)+" on subtotal","scrap"],["JIT/JIS logistics","log"],["INDUSTRIAL COST","ic","tot"],["Mark-up ("+fp(num(S.plants[pl].params.profit)+num(S.plants[pl].params.ga)+num(S.plants[pl].params.produttivita)+num(S.plants[pl].params.imposte))+" of price)","markup"],["PRICE CALCULATED FROM BREAKDOWN","calc","tot"]].map(r=>`<tr class="${r[2]||""}"><td>${r[0]}</td>${O(`fm(${C}.${r[1]},4)+' €'`,r[2]||"")}</tr>`).join("")}
  <tr><td>Break-even price after G&A (IC ÷ (1 − G&A))</td>${O(`fm(${C}.beGA,4)+' €'`)}</tr><tr><td>Material share of calculated price</td>${O(`fp(${C}.matShare)`)}</tr></table></div>
@@ -309,6 +339,30 @@ function pageGui(){const R=runCheck(),G=S.guide||{excel:[],points:[]};
 async function loadHistory(){try{const r=await call("apiHistory",60);const el=document.getElementById("hist");if(!el)return;
  el.innerHTML=`<table><tr><th>Date / time</th><th>User</th><th>Item</th><th class="n">Version</th><th>Action</th></tr>${r.map(x=>`<tr><td>${esc(x.ts)}</td><td>${esc(x.user)}</td><td>${esc(x.key)}</td><td class="n">${esc(x.v)}</td><td>${esc(x.action)}</td></tr>`).join("")}</table>`}catch(e){}}
 
+const COMP=[["G","Depreciation","#0f766e"],["I","Maintenance","#14b8a6"],["M","Energy","#5eead4"],["R","Direct labour","#0369a1"],["T","Burden","#7c3aed"]];
+function miniBar(r){const t=r.rate||1;return `<div class="stack" style="height:14px">${COMP.map(c=>`<div style="width:${Math.max(0,r[c[0]]/t*100)}%;background:${c[2]}" title="${c[1]} ${fm(r[c[0]],2)} €/h"></div>`).join("")}</div>`}
+function pageBur(){const pl=bpl,p=S.plants[pl],P=p.params,B=burdenCalc(pl),pre=`plants.${pl}.`;
+ const tabsH=`<div class="tabs">${PL.map(k=>`<button class="${bpl===k?"on ":""}${k==="TNG"?"T":"Z"}" onclick="bpl='${k}';render()">${PN[k]}</button>`).join("")}</div>`;
+ const K=`burdenCalc('${pl}')`,EF=`effP('${pl}')`;
+ const kp=(l,e,sm)=>`<div><span>${l}</span><b data-c="${e.replace(/"/g,"&quot;")}"></b><small>${sm}</small></div>`;
+ let h=tabsH+`<div class="info">The <b>burden</b> is the sum of plant overhead costs that are not direct labour, depreciation, maintenance or energy (indirect staff, welfare, cleaning, waste, security, logistics…). It is expressed as a % of the <b>direct labour cost</b> and added to every direct-labour hour: <b>burden €/h = DL €/h × burden rate</b>. G&A is charged on the selling price. Maintenance spare parts are expressed as a % of machine depreciation. Same logic as the “ANNEX 4 MAP” of the customer file.</div>
+ <div class="kpi">${kp("Burden total / year",`fm(${K}.t.BURDEN,0)+' €'`,"items classed Burden")}${kp("Direct labour base / year",`fm(${K}.dl,0)+' €'`,"annual direct labour cost")}${kp("Burden rate (computed)",`fp(${K}.burdenRate)`,"burden ÷ direct labour")}${kp("Burden rate IN USE",`fp(${EF}.burden)`,P.burdenMode==="split"?"from the split":"manual value (Basic inputs)")}</div>
+ <div class="kpi">${kp("G&A total / year",`fm(${K}.t.GA,0)+' €'`,"items classed G&A")}${kp("G&A implied on revenue",`fp(${K}.gaPct)`,`revenue of priced products: ${fm(B.rev/1e6,2)} M€ · used rate: ${fp(num(P.ga))}`)}${kp("Maintenance total / year",`fm(${K}.t.MAINT,0)+' €'`,"spare parts and consumables")}${kp("Machine depreciation / year",`fm(${K}.dep,0)+' €'`,"Σ qty × price × (1 − residual) × hours ÷ life")}${kp("Maintenance % IN USE",`fp(${EF}.maint)`,`computed: ${fp(B.maintRate)}`)}</div>
+ <div class="card"><h2>Settings · ${PN[pl]}</h2><div class="grid">
+ <div class="f"><label>Direct labour base (annual cost, €)</label>${inN(pre+"dlBase",p.dlBase)}<small>Business case 2030: direct personnel cost</small></div>
+ <div class="f"><label>Burden rate used</label><select onchange="setPath('${pre}params.burdenMode',this.value);render()"><option value="manual" ${P.burdenMode!=="split"?"selected":""}>Manual (Basic inputs)</option><option value="split" ${P.burdenMode==="split"?"selected":""}>Computed from the split below</option></select></div>
+ <div class="f"><label>Maintenance % used</label><select onchange="setPath('${pre}params.maintMode',this.value);render()"><option value="manual" ${P.maintMode!=="split"?"selected":""}>Manual (Basic inputs)</option><option value="split" ${P.maintMode==="split"?"selected":""}>Computed from the split below</option></select></div></div></div>
+ <div class="card"><h2>Cost items and classification · ${PN[pl]}</h2><p class="sub">Annual steady-state amounts. Change the class of an item to move it between burden, G&A, maintenance, direct-labour base, energy (information only: energy is modelled from kW and €/kWh) or excluded.</p>
+ <table><tr><th>Group</th><th>Item</th><th class="n">Annual €</th><th>Class</th><th class="n">% of class</th><th>Note</th><th></th></tr>`;
+ (p.items||[]).forEach((it,i)=>{const q=`${pre}items.${i}.`;
+  h+=`<tr><td style="min-width:130px">${inT(q+"group",it.group)}</td><td style="min-width:300px">${inT(q+"name",it.name)}</td><td style="width:130px">${inN(q+"annual",it.annual)}</td><td style="width:170px"><select onchange="setPath('${q}cls',this.value);render()">${Object.keys(CLS).map(k=>`<option value="${k}" ${it.cls===k?"selected":""}>${CLS[k]}</option>`).join("")}</select></td>${O(`fp(S.plants.${pl}.items[${i}].annual/(${K}.t[S.plants.${pl}.items[${i}].cls]||1))`)}<td style="min-width:200px;color:#6b7590">${inT(q+"note",it.note||"")}</td><td><button class="btn del" onclick="S.plants.${pl}.items.splice(${i},1);save();render()">✕</button></td></tr>`});
+ h+=`</table><div class="row"><button class="btn" onclick="S.plants.${pl}.items.push({id:nid('b'),group:'',name:'New item',annual:0,cls:'BURDEN',note:''});save();render()">+ Add item</button></div>
+ <h3 style="margin:14px 0 6px;font-size:13px;color:#6b7590;text-transform:uppercase">Totals by class</h3><table style="max-width:560px"><tr><th>Class</th><th class="n">Annual €</th></tr>${Object.keys(CLS).map(k=>`<tr><td>${CLS[k]}</td>${O(`fm(${K}.t.${k},0)`)}</tr>`).join("")}</table></div>
+ <div class="card"><h2>How the burden works on the hourly rates · ${PN[pl]}</h2><p class="sub">Every machine rate adds the burden on top of its direct labour. The table shows the composition of each machine hourly rate (with the operators set in the Machines page; products with a crew use the crew of each process).</p>
+ <table><tr><th>Machine</th><th class="n">Operators</th><th class="n">Depr.</th><th class="n">Maint.</th><th class="n">Energy</th><th class="n">Labour</th><th class="n">Burden</th><th class="n">Rate €/h</th><th style="min-width:200px">Composition</th></tr>
+ ${p.machines.map((m,i)=>{const R_=`mrate(S.plants.${pl}.machines[${i}],'${pl}')`;return `<tr><td>${esc(m.name)}</td><td class="n">${fm(m.workers,2)}</td>${["G","I","M","R","T"].map(k=>O(`fm(${R_}.${k},2)`)).join("")}${O(`fm(${R_}.V,2)`,"tot")}<td data-c="${("miniBar("+R_+")").replace(/"/g,"&quot;")}"></td></tr>`}).join("")}</table>
+ <div class="legend" style="margin-top:10px">${COMP.map(c=>`<span><i style="background:${c[2]}"></i>${c[1]}</span>`).join("")}</div></div>`;
+ return h}
 /* ======================= PDF REPORT ======================= */
 function logoData(){return new Promise(res=>{if(window._logo)return res(window._logo);const im=new Image();im.onload=()=>{try{const c=document.createElement("canvas");c.width=im.width;c.height=im.height;c.getContext("2d").drawImage(im,0,0);res(window._logo={url:c.toDataURL("image/png"),w:im.width,h:im.height})}catch(e){res(null)}};im.onerror=()=>res(null);im.src="logo.png"})}
 const pf=v=>isFinite(v)?fm(v,3):"-",pp=v=>isFinite(v)?(v*100).toFixed(1)+" %":"-";
@@ -333,6 +387,9 @@ async function reportPDF(full,onlyId){
    ar("Employer social charges",k=>pp(PP[k].social)),ar("Direct labour hourly cost (EUR/h)",k=>fm(D[k].mod,2)),ar("Electricity (EUR/kWh)",k=>fm(PP[k].energyPrice,4)),
    ar("Burden rate (indirect / DL)",k=>pp(PP[k].burden)),ar("Maintenance (% of depreciation)",k=>pp(PP[k].maintPct)),ar("Efficiency / OEE",k=>pp(PP[k].oee)),ar("Scrap",k=>pp(PP[k].scrap)),ar("Profit + G&A (on price)",k=>pp(num(PP[k].profit)+num(PP[k].ga)))],
    columnStyles:{0:{cellWidth:260},1:{halign:"right"},2:{halign:"right"}},tableWidth:520})+14;
+  {const BT={TNG:burdenCalc("TNG"),ZGZ:burdenCalc("ZGZ")},EE={TNG:effP("TNG"),ZGZ:effP("ZGZ")};if(y>H-200){doc.addPage();y=60}
+   y=h2("Burden split and hourly rates",y);
+   y=tbl({startY:y,head:[["Item","Tangier","Zaragoza"]],body:[ar("Burden total / year (EUR)",k=>fm(BT[k].t.BURDEN,0)),ar("Direct labour base / year (EUR)",k=>fm(BT[k].dl,0)),ar("Burden rate computed",k=>pp(BT[k].burdenRate)),ar("Burden rate in use",k=>pp(EE[k].burden)),ar("G&A total / year (EUR)",k=>fm(BT[k].t.GA,0)),ar("G&A implied on revenue",k=>pp(BT[k].gaPct)),ar("Maintenance items / year (EUR)",k=>fm(BT[k].t.MAINT,0)),ar("Machine depreciation / year (EUR)",k=>fm(BT[k].dep,0)),ar("Maintenance % computed / in use",k=>pp(BT[k].maintRate)+" / "+pp(EE[k].maint))],columnStyles:{0:{cellWidth:260},1:{halign:"right"},2:{halign:"right"}},tableWidth:520})+14}
  }else y=head("Product sheet - "+prods[0].code,prods[0].desc);
  if(!onlyId){
   if(y>H-150){doc.addPage();y=60}
@@ -353,14 +410,14 @@ async function reportPDF(full,onlyId){
    if(!onlyId){doc.addPage();y=head("Product sheet - "+p.code,p.desc)}
    const t=C[i].TNG,z=C[i].ZGZ,row=(l,k,b)=>[{content:l,styles:b?{fontStyle:"bold"}:{}},pf(t[k]),pf(z[k]),sg(z[k]-t[k])];
    y=h2((p.customer||"")+" "+(p.project||"")+"  |  Annual volume: "+fm(p.v.TNG.volume,0)+" pcs",y+4);
-   y=tbl({startY:y,head:[["Cost build-up (EUR/pc)","Tangier","Zaragoza","Diff Z-T"]],body:[row("Raw materials / components","mat"),row("Conversion (machine rate x times, crew)","conv"),row("Subtotal","sub",1),row("Scrap","scrap"),row("Logistics","log"),row("INDUSTRIAL COST","ic",1),row("Mark-up","markup"),row("PRICE CALCULATED FROM BREAKDOWN","calc",1),
+   y=tbl({startY:y,head:[["Cost build-up (EUR/pc)","Tangier","Zaragoza","Diff Z-T"]],body:[row("Raw materials / components","mat"),row("Conversion (machine rate x times, crew)","conv"),row("   depreciation","cG"),row("   maintenance","cI"),row("   energy","cM"),row("   direct labour","cR"),row("   burden","cT"),row("Operators in the route","heads"),row("Direct labour min / pc","dlMin"),row("Subtotal","sub",1),row("Scrap","scrap"),row("Logistics","log"),row("INDUSTRIAL COST","ic",1),row("Mark-up","markup"),row("PRICE CALCULATED FROM BREAKDOWN","calc",1),
     ["Selling price (Sales)",t.hasPrice?pf(p.v.TNG.price):"-",z.hasPrice?pf(p.v.ZGZ.price):"-",""],["Margin (price - industrial cost)",t.hasPrice?pf(t.margin):"-",z.hasPrice?pf(z.margin):"-",""],["Margin %",pp(t.marginPct),pp(z.marginPct),""]],
     columnStyles:{0:{cellWidth:250},1:{halign:"right"},2:{halign:"right"},3:{halign:"right"}},tableWidth:520})+12;
    if(p.bom.length)y=tbl({startY:y,head:[["Bill of materials","UoM","Qty / pc","Unit cost T","Unit cost Z","EUR/pc T","EUR/pc Z"]],body:p.bom.map((b,j)=>{const m=S.materials.find(x=>x.id===b.matId)||{};return[(m.code||"")+" "+(m.desc||""),m.unit||"",fm(b.qty,4),m.cost?fm(m.cost.TNG,4):"-",m.cost?fm(m.cost.ZGZ,4):"-",fm(t.bomRows[j],4),fm(z.bomRows[j],4)]}),columnStyles:{2:{halign:"right"},3:{halign:"right"},4:{halign:"right"},5:{halign:"right"},6:{halign:"right"}}})+12;
    for(const k of PL){const c=C[i][k],v=p.v[k];if(!v.ops.length)continue;if(y>H-120){doc.addPage();y=60}
-    y=tbl({startY:y,head:[["Processes - "+PN[k],"Machine","Crew","Cavities","Cycle (s)","Eff.","Ref. time (s)","Rate EUR/h","EUR/pc"]],headStyles:{fillColor:k==="TNG"?TNGc:ZGZc,textColor:255},
-     body:v.ops.map((o,j)=>{const m=S.plants[k].machines.find(x=>x.id===o.machineId);return[o.desc,m?m.name:"Manual DL",o.crew==null?"-":fm(o.crew,2),fm(o.cav,2),fm(o.cycle,0),pp(o.eff),fm(c.opRows[j].L,1),fm(c.opRows[j].rate,2),fm(c.opRows[j].N,4)]}),
-     columnStyles:{2:{halign:"right"},3:{halign:"right"},4:{halign:"right"},5:{halign:"right"},6:{halign:"right"},7:{halign:"right"},8:{halign:"right"}}})+10}
+    y=tbl({startY:y,head:[["Processes - "+PN[k],"Machine","Operators","Cycle (s)","Eff.","Ref. (s)","Depr.","Maint.","Energy","Labour","Burden","Rate EUR/h","EUR/pc"]],headStyles:{fillColor:k==="TNG"?TNGc:ZGZc,textColor:255},
+     body:v.ops.map((o,j)=>{const r=c.opRows[j];return[o.desc,r.mname,fm(r.heads,2),fm(o.cycle,0),pp(o.eff),fm(r.L,1),fm(r.G,2),fm(r.I,2),fm(r.M,2),fm(r.R,2),fm(r.T,2),fm(r.rate,2),fm(r.N,4)]}).concat([[{content:"Total per piece (EUR): depr "+fm(c.cG,3)+" | maint "+fm(c.cI,3)+" | energy "+fm(c.cM,3)+" | labour "+fm(c.cR,3)+" | burden "+fm(c.cT,3)+" | operators "+fm(c.heads,2),colSpan:12,styles:{fontStyle:"bold"}},{content:fm(c.conv,4),styles:{fontStyle:"bold"}}]]),
+     columnStyles:{2:{halign:"right"},3:{halign:"right"},4:{halign:"right"},5:{halign:"right"},6:{halign:"right"},7:{halign:"right"},8:{halign:"right"},9:{halign:"right"},10:{halign:"right"},11:{halign:"right"},12:{halign:"right"}}})+10}
    if(p.notes){if(y>H-60){doc.addPage();y=60}doc.setFont("helvetica","italic").setFontSize(7.5).setTextColor(90);doc.text(doc.splitTextToSize("Notes: "+p.notes,W-2*M),M,y+8)}
   });
  }
