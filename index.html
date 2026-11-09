@@ -80,6 +80,8 @@ li{margin:4px 0}
   <div id="nav" style="display:flex;flex-direction:column;gap:4px"></div>
   <div class="grow"></div>
   <div class="tools">
+    <button onclick="reportPDF(false)">⬇ PDF summary report</button>
+    <button onclick="reportPDF(true)">⬇ PDF full report (all products)</button>
     <button onclick="resetData()">⚠ Reset data (admin only)</button>
     <button onclick="saveJSON()">⬇ Save backup (.json)</button>
     <button onclick="document.getElementById('fi').click()">⬆ Load data</button>
@@ -91,6 +93,8 @@ li{margin:4px 0}
 </div>
 
 <script src="config.js"></script>
+<script src="vendor/jspdf.umd.min.js"></script>
+<script src="vendor/jspdf.plugin.autotable.min.js"></script>
 <script>
 /* ======================= EMPTY STATE (no company data in the code) ======================= */
 const PL=["TNG","ZGZ"],PN={TNG:"Tangier",ZGZ:"Zaragoza"};
@@ -160,7 +164,7 @@ function render(keep){
  document.getElementById("nav").innerHTML=PAGES.map(([k,i,t])=>`<button class="nv ${(page===k||(page==="pd"&&k==="prd"))?"on":""}" onclick="go('${k}')"><span>${i}</span>${t}</button>`).join("");
  const T={dash:"Overview · Tangier vs Zaragoza",inp:"Basic inputs",mr:"Machines & processes · machine rate",mat:"Materials master",prd:"Products",pd:"Product sheet",gui:"Guide & checks"};
  document.getElementById("title").textContent=T[page];
- document.getElementById("main").innerHTML={dash:pageDash,inp:pageInp,mr:pageMR,mat:pageMat,prd:pagePrd,pd:pagePD,gui:pageGui}[page]();refresh();if(readonly())document.querySelectorAll("#main input,#main select,#main button.btn").forEach(e=>e.disabled=true);if(!keep)window.scrollTo(0,0)}
+ document.getElementById("main").innerHTML={dash:pageDash,inp:pageInp,mr:pageMR,mat:pageMat,prd:pagePrd,pd:pagePD,gui:pageGui}[page]();refresh();if(readonly())document.querySelectorAll("#main input,#main select,#main button.btn:not([data-ok])").forEach(e=>e.disabled=true);if(!keep)window.scrollTo(0,0)}
 function go(k){page=k;render()}
 function openProd(id,t){selProd=id;if(t)tab=t;page="pd";render()}
 function resetData(){if(ME&&ME.ruolo!=="admin"){alert("Only the administrator can reset the data");return}if(!confirm("WARNING: this erases the SHARED data of all users. Continue?"))return;if(!confirm("Confirm again: this cannot be undone (only the history log remains)."))return;S=build();selProd=null;save();go("dash")}
@@ -187,7 +191,7 @@ function pageDash(){const P=S.products;let comp={TNG:0,ZGZ:0},mar={TNG:0,ZGZ:0},
  <td class="n t">${fm(t.ic,3)} ${t.complete?"":'<span class="badge b-es">materials only</span>'}</td><td class="n z">${fm(z.ic,3)} ${z.complete?"":'<span class="badge b-es">materials only</span>'}</td><td class="n ${ok?(z.ic-t.ic>0?"neg":"pos"):""}">${ok?sg(z.ic-t.ic):"—"}</td>
  <td><div class="bar"><i style="width:${t.ic/maxv*100}%;background:#c2410c"></i></div><div class="bar"><i style="width:${z.ic/maxv*100}%;background:#1d4ed8"></i></div></td>
  <td class="n t ${t.margin<0?"neg":""}">${fp(t.marginPct)}</td><td class="n z ${z.margin<0?"neg":""}">${fp(z.marginPct)}</td><td><button class="btn sec" onclick="openProd('${p.id}','CMP')">Open</button></td></tr>`}).join("")}</table>
- <div class="row"><button class="btn sec" onclick="exportCSV()">⬇ Export table (CSV)</button></div></div>`}
+ <div class="row"><button class="btn sec" onclick="exportCSV()">⬇ Export table (CSV)</button><button class="btn sec" data-ok="1" onclick="reportPDF(false)">⬇ PDF summary report</button><button class="btn sec" data-ok="1" onclick="reportPDF(true)">⬇ PDF full report</button></div></div>`}
 function exportCSV(){const rows=[["Code","Description","Customer","Project","Plant","Volume","Materials","Conversion","Industrial cost","Calculated price","Selling price","Margin","Margin %"]];
  S.products.forEach(p=>PL.forEach(pl=>{const c=pcalc(p,pl),v=p.v[pl];rows.push([p.code,p.desc,p.customer,p.project,PN[pl],v.volume,c.mat,c.conv,c.ic,c.calc,v.price,c.margin,c.marginPct])}));
  const a=document.createElement("a");a.href=URL.createObjectURL(new Blob(["﻿"+rows.map(r=>r.map(x=>`"${String(x??"").replace(/"/g,'""')}"`).join(";")).join("\n")],{type:"text/csv"}));a.download="product_costs.csv";a.click()}
@@ -237,7 +241,7 @@ function copyOps(ix,from,to){if(!confirm("Copy operations from "+PN[from]+" to "
 function pagePD(){const p=S.products.find(x=>x.id===selProd);if(!p){page="prd";return pagePrd()}
  const ix=S.products.indexOf(p),b=`products.${ix}.`;
  let h=`<button class="back" onclick="go('prd')">← All products</button>
- <div class="card"><div class="row" style="justify-content:space-between"><div><h2 style="font-size:19px">${p.desc}</h2><span class="sub">${p.code} · Tangier and Zaragoza versions</span></div><div class="row"><button class="btn sec" onclick="dupProd()">Duplicate</button><button class="btn del" onclick="delProd()">Delete</button></div></div>
+ <div class="card"><div class="row" style="justify-content:space-between"><div><h2 style="font-size:19px">${p.desc}</h2><span class="sub">${p.code} · Tangier and Zaragoza versions</span></div><div class="row"><button class="btn sec" data-ok="1" onclick="reportPDF(true,selProd)">⬇ Product PDF</button><button class="btn sec" onclick="dupProd()">Duplicate</button><button class="btn del" onclick="delProd()">Delete</button></div></div>
  <div class="grid"><div class="f"><label>Code / drawing</label>${inT(b+"code",p.code)}</div><div class="f"><label>Description</label>${inT(b+"desc",p.desc)}</div><div class="f"><label>Customer</label>${inT(b+"customer",p.customer)}</div><div class="f"><label>Project</label>${inT(b+"project",p.project)}</div></div>
  <div class="f" style="margin-top:10px"><label>Notes</label>${inT(b+"notes",p.notes)}</div></div>${tabs()}`;
  /* BOM (shared by the two plants) */
@@ -299,6 +303,64 @@ function pageGui(){const R=runCheck(),G=S.guide||{excel:[],points:[]};
  if(API)setTimeout(loadHistory,50);return h}
 async function loadHistory(){try{const r=await call("apiHistory",60);const el=document.getElementById("hist");if(!el)return;
  el.innerHTML=`<table><tr><th>Date / time</th><th>User</th><th>Item</th><th class="n">Version</th><th>Action</th></tr>${r.map(x=>`<tr><td>${esc(x.ts)}</td><td>${esc(x.user)}</td><td>${esc(x.key)}</td><td class="n">${esc(x.v)}</td><td>${esc(x.action)}</td></tr>`).join("")}</table>`}catch(e){}}
+
+/* ======================= PDF REPORT ======================= */
+function logoData(){return new Promise(res=>{if(window._logo)return res(window._logo);const im=new Image();im.onload=()=>{try{const c=document.createElement("canvas");c.width=im.width;c.height=im.height;c.getContext("2d").drawImage(im,0,0);res(window._logo={url:c.toDataURL("image/png"),w:im.width,h:im.height})}catch(e){res(null)}};im.onerror=()=>res(null);im.src="logo.png"})}
+const pf=v=>isFinite(v)?fm(v,3):"-",pp=v=>isFinite(v)?(v*100).toFixed(1)+" %":"-";
+async function reportPDF(full,onlyId){
+ if(!window.jspdf){alert("PDF library not loaded");return}
+ const doc=new window.jspdf.jsPDF({orientation:"landscape",unit:"pt",format:"a4"}),W=doc.internal.pageSize.getWidth(),H=doc.internal.pageSize.getHeight(),M=36;
+ const lg=await logoData(),date=new Date().toLocaleDateString("en-GB"),who=ME?ME.nome:"";
+ const NAVY=[15,27,51],TNGc=[194,65,12],ZGZc=[29,78,216];
+ const head=(t,sub)=>{if(lg)doc.addImage(lg.url,"PNG",M,26,110,110*lg.h/lg.w);doc.setFont("helvetica","bold").setFontSize(16).setTextColor(...NAVY).text(t,M+130,44);doc.setFont("helvetica","normal").setFontSize(9).setTextColor(100).text(sub+"  |  "+date+(who?"  |  "+who:""),M+130,58);return 78};
+ const h2=(t,y)=>{doc.setFont("helvetica","bold").setFontSize(11).setTextColor(...NAVY).text(t,M,y);return y+6};
+ const tbl=(o)=>{doc.autoTable(Object.assign({theme:"grid",styles:{fontSize:8,cellPadding:3,lineColor:[220,224,235]},headStyles:{fillColor:NAVY,textColor:255},margin:{left:M,right:M}},o));return doc.lastAutoTable.finalY};
+ const prods=onlyId?S.products.filter(p=>p.id===onlyId):S.products;
+ const D={TNG:derived(S.plants.TNG.params),ZGZ:derived(S.plants.ZGZ.params)},PP={TNG:S.plants.TNG.params,ZGZ:S.plants.ZGZ.params};
+ const C=prods.map(p=>({TNG:pcalc(p,"TNG"),ZGZ:pcalc(p,"ZGZ")}));
+ let y;
+ if(!onlyId){
+  y=head("Product cost report - Tangier vs Zaragoza","Summary");
+  y=h2("Key assumptions",y+4);
+  const ar=(l,f)=>[l,f("TNG"),f("ZGZ")];
+  y=tbl({startY:y,head:[["Parameter","Tangier","Zaragoza"]],body:[
+   ar("Available machine hours / year",k=>fm(D[k].avail,0)),ar("Net presence hours / month",k=>fm(D[k].net,1)),ar("Gross annual salary, direct operator (EUR)",k=>fm(PP[k].grossYear,0)),
+   ar("Employer social charges",k=>pp(PP[k].social)),ar("Direct labour hourly cost (EUR/h)",k=>fm(D[k].mod,2)),ar("Electricity (EUR/kWh)",k=>fm(PP[k].energyPrice,4)),
+   ar("Burden rate (indirect / DL)",k=>pp(PP[k].burden)),ar("Maintenance (% of depreciation)",k=>pp(PP[k].maintPct)),ar("Efficiency / OEE",k=>pp(PP[k].oee)),ar("Scrap",k=>pp(PP[k].scrap)),ar("Profit + G&A (on price)",k=>pp(num(PP[k].profit)+num(PP[k].ga)))],
+   columnStyles:{0:{cellWidth:260},1:{halign:"right"},2:{halign:"right"}},tableWidth:520})+14;
+ }else y=head("Product sheet - "+prods[0].code,prods[0].desc);
+ if(!onlyId){
+  if(y>H-150){doc.addPage();y=60}
+  y=h2("Products - industrial cost, price and margin (EUR/pc)",y);
+  let rev={TNG:0,ZGZ:0},mar={TNG:0,ZGZ:0};
+  const body=prods.map((p,i)=>{const t=C[i].TNG,z=C[i].ZGZ;for(const k of PL){const c=C[i][k],v=p.v[k];rev[k]+=num(v.price)*num(v.volume);if(c.hasPrice)mar[k]+=c.margin*num(v.volume)}
+   return [p.code,p.desc,fm(p.v.TNG.volume,0),pf(t.ic)+(t.complete?"":"*"),pf(z.ic)+(z.complete?"":"*"),(t.complete&&z.complete)?sg(z.ic-t.ic):"-",t.hasPrice?pf(p.v.TNG.price):"-",z.hasPrice?pf(p.v.ZGZ.price):"-",pp(t.marginPct),pp(z.marginPct)]});
+  body.push([{content:"Annual revenue / margin on priced products (EUR)",colSpan:3,styles:{fontStyle:"bold"}},{content:"Tangier: "+fm(rev.TNG,0)+" / "+fm(mar.TNG,0),colSpan:3,styles:{fontStyle:"bold",textColor:TNGc}},{content:"Zaragoza: "+fm(rev.ZGZ,0)+" / "+fm(mar.ZGZ,0),colSpan:4,styles:{fontStyle:"bold",textColor:ZGZc}}]);
+  y=tbl({startY:y,head:[["Code","Description","Volume","Ind. cost T","Ind. cost Z","Diff Z-T","Price T","Price Z","Margin T","Margin Z"]],body,
+   columnStyles:{2:{halign:"right"},3:{halign:"right"},4:{halign:"right"},5:{halign:"right"},6:{halign:"right"},7:{halign:"right"},8:{halign:"right"},9:{halign:"right"}}})+6;
+  doc.setFontSize(7.5).setTextColor(90).text("* materials only: no processes entered for that version (not comparable).  T = Tangier, Z = Zaragoza.  Margin = selling price - industrial cost, as % of price.",M,y+6);
+  const pts=(S.guide&&S.guide.points)||[];
+  if(pts.length){doc.addPage();y=60;y=h2("Key caveats",y);doc.setFont("helvetica","normal").setFontSize(8.5).setTextColor(40);
+   for(const t of pts){const ls=doc.splitTextToSize("- "+t,W-2*M);if(y+ls.length*11>H-40){doc.addPage();y=60}doc.text(ls,M,y+12);y+=ls.length*11+6}}
+ }
+ if(full){
+  prods.forEach((p,i)=>{
+   if(!onlyId){doc.addPage();y=head("Product sheet - "+p.code,p.desc)}
+   const t=C[i].TNG,z=C[i].ZGZ,row=(l,k,b)=>[{content:l,styles:b?{fontStyle:"bold"}:{}},pf(t[k]),pf(z[k]),sg(z[k]-t[k])];
+   y=h2((p.customer||"")+" "+(p.project||"")+"  |  Annual volume: "+fm(p.v.TNG.volume,0)+" pcs",y+4);
+   y=tbl({startY:y,head:[["Cost build-up (EUR/pc)","Tangier","Zaragoza","Diff Z-T"]],body:[row("Raw materials / components","mat"),row("Conversion (machine rate x times, crew)","conv"),row("Subtotal","sub",1),row("Scrap","scrap"),row("Logistics","log"),row("INDUSTRIAL COST","ic",1),row("Mark-up","markup"),row("PRICE CALCULATED FROM BREAKDOWN","calc",1),
+    ["Selling price (Sales)",t.hasPrice?pf(p.v.TNG.price):"-",z.hasPrice?pf(p.v.ZGZ.price):"-",""],["Margin (price - industrial cost)",t.hasPrice?pf(t.margin):"-",z.hasPrice?pf(z.margin):"-",""],["Margin %",pp(t.marginPct),pp(z.marginPct),""]],
+    columnStyles:{0:{cellWidth:250},1:{halign:"right"},2:{halign:"right"},3:{halign:"right"}},tableWidth:520})+12;
+   if(p.bom.length)y=tbl({startY:y,head:[["Bill of materials","UoM","Qty / pc","Unit cost T","Unit cost Z","EUR/pc T","EUR/pc Z"]],body:p.bom.map((b,j)=>{const m=S.materials.find(x=>x.id===b.matId)||{};return[(m.code||"")+" "+(m.desc||""),m.unit||"",fm(b.qty,4),m.cost?fm(m.cost.TNG,4):"-",m.cost?fm(m.cost.ZGZ,4):"-",fm(t.bomRows[j],4),fm(z.bomRows[j],4)]}),columnStyles:{2:{halign:"right"},3:{halign:"right"},4:{halign:"right"},5:{halign:"right"},6:{halign:"right"}}})+12;
+   for(const k of PL){const c=C[i][k],v=p.v[k];if(!v.ops.length)continue;if(y>H-120){doc.addPage();y=60}
+    y=tbl({startY:y,head:[["Processes - "+PN[k],"Machine","Crew","Cavities","Cycle (s)","Eff.","Ref. time (s)","Rate EUR/h","EUR/pc"]],headStyles:{fillColor:k==="TNG"?TNGc:ZGZc,textColor:255},
+     body:v.ops.map((o,j)=>{const m=S.plants[k].machines.find(x=>x.id===o.machineId);return[o.desc,m?m.name:"Manual DL",o.crew==null?"-":fm(o.crew,2),fm(o.cav,2),fm(o.cycle,0),pp(o.eff),fm(c.opRows[j].L,1),fm(c.opRows[j].rate,2),fm(c.opRows[j].N,4)]}),
+     columnStyles:{2:{halign:"right"},3:{halign:"right"},4:{halign:"right"},5:{halign:"right"},6:{halign:"right"},7:{halign:"right"},8:{halign:"right"}}})+10}
+   if(p.notes){if(y>H-60){doc.addPage();y=60}doc.setFont("helvetica","italic").setFontSize(7.5).setTextColor(90);doc.text(doc.splitTextToSize("Notes: "+p.notes,W-2*M),M,y+8)}
+  });
+ }
+ const n=doc.internal.getNumberOfPages();for(let i=1;i<=n;i++){doc.setPage(i);doc.setFont("helvetica","normal").setFontSize(7.5).setTextColor(130).text("ADLER Pelzer Group - Product cost console  |  page "+i+" / "+n+"  |  confidential",M,H-18)}
+ doc.save(onlyId?("product_"+prods[0].code.replace(/[^A-Za-z0-9_-]/g,"_")+".pdf"):(full?"product_cost_full_report.pdf":"product_cost_summary.pdf"))}
 
 /* ======================= ACCESSO, DATI CONDIVISI, SALVATAGGIO ======================= */
 const API=window.ADLER_API||"";
