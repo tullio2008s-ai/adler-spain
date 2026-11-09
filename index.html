@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="it">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Costo Prodotto ADLER</title>
+<title>ADLER Product Cost</title>
 <style>
 :root{--navy:#0f1b33;--navy2:#1a2b4f;--bg:#f3f5f9;--card:#fff;--ink:#17203a;--mut:#6b7590;--line:#e2e6ef;--acc:#2563eb;--teal:#0d9488;--amb:#f59e0b;--vio:#8b5cf6;--sl:#94a3b8;--ok:#15803d;--bad:#b91c1c;--est:#fff7e0;--tng:#c2410c;--zgz:#1d4ed8}
 *{box-sizing:border-box}html,body{margin:0}
@@ -29,7 +29,7 @@ th{font-size:11.5px;color:var(--mut);text-transform:uppercase;letter-spacing:.4p
 td.n,th.n{text-align:right}tr:last-child td{border-bottom:0}
 tr.tot td{font-weight:700;background:#f0f5ff}
 th.t,td.t{border-left:3px solid var(--tng)}th.z,td.z{border-left:3px solid var(--zgz)}
-input[type=number],input[type=text],select{border:1px solid #d3d9e6;border-radius:8px;padding:6px 8px;background:#fff;font:inherit;color:inherit;width:100%;min-width:70px}
+input[type=number],input[type=text],input[type=password],select{border:1px solid #d3d9e6;border-radius:8px;padding:6px 8px;background:#fff;font:inherit;color:inherit;width:100%;min-width:70px}
 input[type=number]{text-align:right}input:focus,select:focus{outline:2px solid #2563eb44;border-color:var(--acc)}
 .est input,.est select,input.est{background:var(--est)}
 td.out{text-align:right;font-variant-numeric:tabular-nums;background:#f8fafd}
@@ -69,52 +69,52 @@ code{background:#eef1f7;padding:1px 5px;border-radius:4px;font-size:12.5px}
 .back{background:none;border:0;color:var(--acc);font-weight:600;padding:0;margin-bottom:10px}
 li{margin:4px 0}
 @media(max-width:860px){body{flex-direction:column}aside{width:100%;height:auto;position:static;flex-direction:row;flex-wrap:wrap}.logo{display:none}aside .grow,aside .mini,aside .tools{display:none}main,.top{padding:14px}}
-.hid{display:none!important}#login{width:380px;max-width:92vw;align-self:flex-start;margin:12vh auto;background:#fff;border:1px solid var(--line);border-radius:16px;padding:28px;box-shadow:0 10px 40px #0f1b3320}#login h2{font-size:20px;margin-bottom:14px}#login label{display:block;margin:12px 0 4px;color:var(--mut);font-size:12.5px}#login .btn{width:100%;margin-top:18px;padding:10px}#l_e{color:var(--bad);margin-top:10px;min-height:20px;font-size:13px}#app{display:flex;flex:1;min-width:0}
+.hid{display:none!important}#login{width:380px;max-width:92vw;align-self:flex-start;margin:12vh auto;background:#fff;border:1px solid var(--line);border-radius:16px;padding:28px;box-shadow:0 10px 40px #0f1b3320}#login h2{font-size:20px;margin-bottom:14px}#login label{display:block;margin:12px 0 4px;color:var(--mut);font-size:12.5px}#login .btn{width:100%;margin-top:18px;padding:10px}#l_e{color:var(--bad);margin-top:10px;min-height:20px;font-size:13px}#app{display:flex;flex:1;min-width:0}#login .lg{width:240px;max-width:100%;display:block;margin:0 0 18px}.lgbox{background:#fff;border-radius:10px;padding:10px 12px;margin-bottom:8px}.lgbox img{width:100%;display:block}.logo span{display:block;margin-top:6px}
 </style>
 </head>
 <body>
-<div id="login" class="hid"><h2>ADLER · Costo prodotto</h2><div class="sub">Accesso riservato</div><label>Utente</label><input id="l_u" type="text" autocomplete="username"><label>Password</label><input id="l_p" type="password" autocomplete="current-password"><button class="btn" onclick="doLogin()">Accedi</button><div id="l_e"></div></div>
+<div id="login" class="hid"><img src="logo.png" alt="Adler Pelzer Group" class="lg"><h2>Product Cost Console</h2><div class="sub">Restricted access</div><label>User ID</label><input id="l_u" type="text" autocomplete="username"><label>Password</label><input id="l_p" type="password" autocomplete="current-password"><button class="btn" onclick="doLogin()">Sign in</button><div id="l_e"></div></div>
 <div id="app" class="hid">
 <aside>
-  <div class="logo"><b>ADLER</b><span>Costo prodotto · Tangeri / Zaragoza</span></div>
+  <div class="logo"><div class="lgbox"><img src="logo.png" alt="Adler Pelzer Group"></div><span>Product cost · Tangier / Zaragoza</span></div>
   <div id="nav" style="display:flex;flex-direction:column;gap:4px"></div>
   <div class="grow"></div>
   <div class="tools">
-    <button onclick="resetData()">⚠ Azzera dati (solo admin)</button>
-    <button onclick="saveJSON()">⬇ Salva dati (.json)</button>
-    <button onclick="document.getElementById('fi').click()">⬆ Carica dati</button>
+    <button onclick="resetData()">⚠ Reset data (admin only)</button>
+    <button onclick="saveJSON()">⬇ Save backup (.json)</button>
+    <button onclick="document.getElementById('fi').click()">⬆ Load data</button>
     <input id="fi" type="file" accept=".json" style="display:none" onchange="loadJSON(this)">
   </div>
-  <div class="mini" style="margin-top:10px">Dati condivisi sul server aziendale.</div>
+  <div class="mini" style="margin-top:10px">Shared data on the company server.</div>
 </aside>
-<div class="wrap"><div class="top"><h1 id="title"></h1><span class="sp"></span><span id="stat" class="badge b-de"></span><span class="badge b-t">Tangeri</span><span class="badge b-z">Zaragoza</span><b id="who" style="font-size:13px"></b><button id="exitb" class="btn sec hid" onclick="logout()">Esci</button></div><div id="confl" class="hid" style="padding:12px 28px 0"></div><main id="main"></main></div>
+<div class="wrap"><div class="top"><h1 id="title"></h1><span class="sp"></span><span id="stat" class="badge b-de"></span><span class="badge b-t">Tangier</span><span class="badge b-z">Zaragoza</span><b id="who" style="font-size:13px"></b><button id="exitb" class="btn sec hid" onclick="logout()">Sign out</button></div><div id="confl" class="hid" style="padding:12px 28px 0"></div><main id="main"></main></div>
 </div>
 
 <script src="config.js"></script>
 <script>
-/* ======================= STATO VUOTO (nessun dato aziendale nel codice) ======================= */
-const PL=["TNG","ZGZ"],PN={TNG:"Tangeri",ZGZ:"Zaragoza"};
+/* ======================= EMPTY STATE (no company data in the code) ======================= */
+const PL=["TNG","ZGZ"],PN={TNG:"Tangier",ZGZ:"Zaragoza"};
 const FLAGS=()=>({dep:false,maint:false,energy:false,cassa:false,indirect:false});
 const P0=()=>({days:248,opDays:248,shifts:3,hoursShift:8,paidHours:1744,pause:0,grossYear:0,social:0,energyPrice:0,energyUse:.75,maintPct:.577,burden:0,cassa:0,oee:.85,scrap:.03,ga:.08,profit:.08,produttivita:0,imposte:0,depExcl:false});
-function build(){return{name:"Costo prodotto ADLER",plants:{TNG:{name:"Tangeri",params:P0(),flags:FLAGS(),machines:[]},ZGZ:{name:"Zaragoza",params:P0(),flags:FLAGS(),machines:[]}},materials:[],products:[],notes:{},guide:{excel:[],points:[]},check:null}}
+function build(){return{name:"ADLER product cost",plants:{TNG:{name:"Tangier",params:P0(),flags:FLAGS(),machines:[]},ZGZ:{name:"Zaragoza",params:P0(),flags:FLAGS(),machines:[]}},materials:[],products:[],notes:{},guide:{excel:[],points:[]},check:null}}
 /* fonti per parametro: [chiave, etichetta, UM, fonte Tangeri, fonte Zaragoza, nota] */
-const SRC={BC:["Business case","b-bc"],AD:["File Adler","b-ad"],ES:["Stima · da validare","b-es"],DE:["Calcolato","b-de"]};
+const SRC={BC:["Business case","b-bc"],AD:["Adler file","b-ad"],ES:["Estimate · to validate","b-es"],DE:["Calculated","b-de"]};
 const NOTE=k=>(S.notes&&S.notes[k])||["ES","ES",""];
 const PDEF=[
-["Calendario e disponibilità macchine",[["days","Giorni di produzione macchina / anno","gg"],["shifts","Turni / giorno","n"],["hoursShift","Ore / turno","h"],["_avail","Ore disponibili macchina / anno","h","= giorni × turni × ore"]]],
-["Costo del lavoro",[["grossYear","Retribuzione lorda annua operatore diretto","€"],["social","Oneri sociali a carico azienda","%"],["opDays","Giorni lavorativi operatore / anno","gg"],["paidHours","Ore annue pagate per operatore","h"],["pause","Pause non produttive / giorno","h"],["_net","Ore nette presenza / mese","h","= (ore pagate ÷ giorni − pause) × giorni ÷ 12"],["_mod","Costo orario operatore diretto (MOD)","€/h","= lordo × (1 + oneri) ÷ (ore nette × 12)"],["cassa","Maggiorazione inefficienza lavoro","%"]]],
-["Energia e manutenzione",[["energyPrice","Costo energia elettrica","€/kWh"],["energyUse","Fattore di utilizzo energia","%"],["maintPct","Manutenzione (% dell'ammortamento orario)","%"]]],
-["Costi indiretti e mark-up",[["burden","Burden rate (indiretti ÷ MOD)","%"],["oee","Efficienza / OEE di default","%"],["scrap","Scarto sul subtotale (materiali + trasformazione)","%"],["profit","Utile (Lucro)","%"],["ga","G&A","%"],["produttivita","Produttività","%"],["imposte","Imposte","%"]]]];
+["Calendar and machine availability",[["days","Machine production days / year","days"],["shifts","Shifts / day","no."],["hoursShift","Hours / shift","h"],["_avail","Available machine hours / year","h","= days × shifts × hours"]]],
+["Labour cost",[["grossYear","Gross annual salary, direct operator","€"],["social","Employer social charges","%"],["opDays","Operator working days / year","days"],["paidHours","Paid hours per operator / year","h"],["pause","Non-productive breaks / day","h"],["_net","Net presence hours / month","h","= (paid hours ÷ days − breaks) × days ÷ 12"],["_mod","Direct labour hourly cost (DL)","€/h","= gross × (1 + charges) ÷ (net hours × 12)"],["cassa","Labour inefficiency surcharge","%"]]],
+["Energy and maintenance",[["energyPrice","Electricity cost","€/kWh"],["energyUse","Energy utilisation factor","%"],["maintPct","Maintenance (% of hourly depreciation)","%"]]],
+["Indirect costs and mark-up",[["burden","Burden rate (indirect ÷ DL)","%"],["oee","Default efficiency / OEE","%"],["scrap","Scrap on subtotal (materials + conversion)","%"],["profit","Profit","%"],["ga","G&A","%"],["produttivita","Productivity","%"],["imposte","Taxes","%"]]]];
 const PCT=new Set(["social","energyUse","maintPct","burden","cassa","oee","scrap","profit","ga","produttivita","imposte"]);
-const FDEF=[["dep","Ammortamento ÷ GU","Adler: no"],["maint","Manutenzione ÷ GU","Adler: no"],["energy","Energia ÷ GU","Adler: no"],["cassa","Applica maggiorazione inefficienza al MOD","Adler: sì"],["indirect","Indiretti (burden) ÷ GU","Adler: sì – penalizza le macchine poco saturate; attivare solo con portafoglio completo"]];
+const FDEF=[["dep","Depreciation ÷ UR","Adler: no"],["maint","Maintenance ÷ UR","Adler: no"],["energy","Energy ÷ UR","Adler: no"],["cassa","Apply inefficiency surcharge to DL","Adler: yes"],["indirect","Indirect (burden) ÷ UR","Adler: yes – penalises under-loaded machines; enable only with the complete product portfolio loaded"]];
 
 /* ======================= MOTORE ======================= */
 let S=build();
 let page="dash",selProd=null,tab="TNG",mpl="TNG",uid=1;
 const nid=p=>p+Date.now().toString(36)+(uid++);
 const num=v=>{const x=parseFloat(v);return isFinite(x)?x:0};
-const fm=(v,d=2)=>isFinite(v)?v.toLocaleString("it-IT",{minimumFractionDigits:d,maximumFractionDigits:d}):"—";
-const fp=v=>isFinite(v)?(v*100).toLocaleString("it-IT",{minimumFractionDigits:1,maximumFractionDigits:1})+" %":"—";
+const fm=(v,d=2)=>isFinite(v)?v.toLocaleString("en-GB",{minimumFractionDigits:d,maximumFractionDigits:d}):"—";
+const fp=v=>isFinite(v)?(v*100).toLocaleString("en-GB",{minimumFractionDigits:1,maximumFractionDigits:1})+" %":"—";
 const sg=v=>isFinite(v)?(v>0?"+":"")+fm(v,3):"—";
 function derived(P){const avail=num(P.days)*num(P.shifts)*num(P.hoursShift);
  const net=((num(P.paidHours)/(num(P.opDays)||1))-num(P.pause))*num(P.opDays)/12;
@@ -149,131 +149,131 @@ const inC=(p,v)=>`<input type="checkbox" ${v?"checked":""} onchange="setPath('${
 const O=(e,cls="")=>`<td class="out ${cls}" data-c="${e.replace(/"/g,"&quot;")}"></td>`;
 const S_=(e,cls="")=>`<span class="${cls}" data-c="${e.replace(/"/g,"&quot;")}"></span>`;
 function refresh(){document.querySelectorAll("[data-c]").forEach(e=>{try{e.innerHTML=eval(e.dataset.c)}catch(x){e.innerHTML="—"}})}
-const PAGES=[["dash","▦","Panoramica"],["inp","⚙","Input di base"],["mr","🏭","Macchine & processi"],["mat","▤","Materiali"],["prd","📦","Prodotti"],["gui","✔","Guida & controllo"]];
+const PAGES=[["dash","▦","Overview"],["inp","⚙","Basic inputs"],["mr","🏭","Machines & processes"],["mat","▤","Materials"],["prd","📦","Products"],["gui","✔","Guide & checks"]];
 function render(keep){
  document.getElementById("nav").innerHTML=PAGES.map(([k,i,t])=>`<button class="nv ${(page===k||(page==="pd"&&k==="prd"))?"on":""}" onclick="go('${k}')"><span>${i}</span>${t}</button>`).join("");
- const T={dash:"Panoramica · Tangeri vs Zaragoza",inp:"Input di base",mr:"Macchine & processi · machine rate",mat:"Anagrafica materiali",prd:"Prodotti",pd:"Scheda prodotto",gui:"Guida & controllo"};
+ const T={dash:"Overview · Tangier vs Zaragoza",inp:"Basic inputs",mr:"Machines & processes · machine rate",mat:"Materials master",prd:"Products",pd:"Product sheet",gui:"Guide & checks"};
  document.getElementById("title").textContent=T[page];
  document.getElementById("main").innerHTML={dash:pageDash,inp:pageInp,mr:pageMR,mat:pageMat,prd:pagePrd,pd:pagePD,gui:pageGui}[page]();refresh();if(readonly())document.querySelectorAll("#main input,#main select,#main button.btn").forEach(e=>e.disabled=true);if(!keep)window.scrollTo(0,0)}
 function go(k){page=k;render()}
 function openProd(id,t){selProd=id;if(t)tab=t;page="pd";render()}
-function resetData(){if(ME&&ME.ruolo!=="admin"){alert("Solo l'amministratore può azzerare i dati");return}if(!confirm("ATTENZIONE: azzera i dati CONDIVISI di tutti gli utenti. Continuare?"))return;if(!confirm("Confermi di nuovo: operazione non annullabile (resta solo lo storico)."))return;S=build();selProd=null;save();go("dash")}
+function resetData(){if(ME&&ME.ruolo!=="admin"){alert("Only the administrator can reset the data");return}if(!confirm("WARNING: this erases the SHARED data of all users. Continue?"))return;if(!confirm("Confirm again: this cannot be undone (only the history log remains)."))return;S=build();selProd=null;save();go("dash")}
 function saveJSON(){const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([JSON.stringify(S,null,1)],{type:"application/json"}));a.download="adler_dati_backup.json";a.click()}
-function loadJSON(el){const f=el.files[0];if(!f)return;if(readonly()){alert("Account in sola lettura");return}const r=new FileReader();r.onload=()=>{try{const x=JSON.parse(r.result);if(!x.plants||!x.products)throw 0;if(API&&Object.keys(REM).length&&!confirm("Il database contiene già dati: l'import li SOSTITUISCE per tutti. Continuare?"))return;S=Object.assign(build(),x);selProd=null;loaded=true;save();go("dash")}catch(e){alert("File non valido")}};r.readAsText(f);el.value=""}
+function loadJSON(el){const f=el.files[0];if(!f)return;if(readonly()){alert("Read-only account");return}const r=new FileReader();r.onload=()=>{try{const x=JSON.parse(r.result);if(!x.plants||!x.products)throw 0;if(API&&Object.keys(REM).length&&!confirm("The database already contains data: the import REPLACES it for everyone. Continue?"))return;S=Object.assign(build(),x);selProd=null;loaded=true;save();go("dash")}catch(e){alert("Invalid file")}};r.readAsText(f);el.value=""}
 
 /* ======================= PAGINE ======================= */
 const COL={mat:"#2563eb",conv:"#0d9488",scrap:"#f59e0b",log:"#8b5cf6",mk:"#94a3b8"};
-function stack(c){const t=c.calc||1;const seg=[["Materiali",c.mat,COL.mat],["Trasformazione",c.conv,COL.conv],["Scarto",c.scrap,COL.scrap],["Logistica",c.log,COL.log],["Mark-up (utile+G&A)",c.markup,COL.mk]];
+function stack(c){const t=c.calc||1;const seg=[["Materials",c.mat,COL.mat],["Conversion",c.conv,COL.conv],["Scrap",c.scrap,COL.scrap],["Logistics",c.log,COL.log],["Mark-up (profit + G&A)",c.markup,COL.mk]];
  return `<div class="stack">${seg.map(s=>`<div style="width:${Math.max(0,s[1]/t*100)}%;background:${s[2]}">${s[1]/t>.07?fm(s[1]/t*100,0)+"%":""}</div>`).join("")}</div><div class="legend">${seg.map(s=>`<span><i style="background:${s[2]}"></i>${s[0]} ${fm(s[1],3)} €</span>`).join("")}</div>`}
 const stackOf=(ix,pl)=>`stack(pcalc(S.products[${ix}],'${pl}'))`;
-const tabs=()=>`<div class="tabs">${[["TNG","Tangeri","T"],["ZGZ","Zaragoza","Z"],["CMP","Confronto","C"]].map(x=>`<button class="${tab===x[0]?"on ":""}${x[2]}" onclick="tab='${x[0]}';render()">${x[1]}</button>`).join("")}</div>`;
+const tabs=()=>`<div class="tabs">${[["TNG","Tangier","T"],["ZGZ","Zaragoza","Z"],["CMP","Comparison","C"]].map(x=>`<button class="${tab===x[0]?"on ":""}${x[2]}" onclick="tab='${x[0]}';render()">${x[1]}</button>`).join("")}</div>`;
 
 function pageDash(){const P=S.products;let comp={TNG:0,ZGZ:0},mar={TNG:0,ZGZ:0},rev={TNG:0,ZGZ:0};
  const R=P.map(p=>{const r={};for(const pl of PL){r[pl]=pcalc(p,pl);if(r[pl].complete)comp[pl]++;const v=p.v[pl];rev[pl]+=num(v.price)*num(v.volume);if(r[pl].hasPrice)mar[pl]+=r[pl].margin*num(v.volume)}return r});
  const maxv=Math.max(...R.map(r=>Math.max(r.TNG.ic,r.ZGZ.ic)),.01);
- return `<div class="kpi"><div><span>Codici prodotto</span><b>${P.length}</b><small>ognuno con versione Tangeri e Zaragoza</small></div>
- <div><span>Versioni con processi inseriti</span><b>${comp.TNG+comp.ZGZ} / ${P.length*2}</b><small>Tangeri ${comp.TNG} · Zaragoza ${comp.ZGZ}</small></div>
- <div><span>Margine annuo · Tangeri</span><b class="${mar.TNG<0?"neg":""}">${fm(mar.TNG/1e6,2)} M€</b><small>${rev.TNG?fp(mar.TNG/rev.TNG)+" su fatturato":"nessun prezzo inserito"}</small></div>
- <div><span>Margine annuo · Zaragoza</span><b class="${mar.ZGZ<0?"neg":""}">${fm(mar.ZGZ/1e6,2)} M€</b><small>${rev.ZGZ?fp(mar.ZGZ/rev.ZGZ)+" su fatturato":"nessun prezzo inserito"}</small></div></div>
- <div class="card"><h2>Costo industriale per codice: Tangeri vs Zaragoza</h2><p class="sub">Dove una versione non ha processi inseriti il costo comprende solo il materiale: non è confrontabile. Clicca “Apri” per la scheda dettagliata.</p>
- <table><tr><th>Prodotto</th><th>Codice</th><th class="n">Volume</th><th class="n t">Costo ind. Tangeri</th><th class="n z">Costo ind. Zaragoza</th><th class="n">Δ Zaragoza − Tangeri</th><th style="width:210px">Costo ind.</th><th class="n t">Marg. % Tangeri</th><th class="n z">Marg. % Zaragoza</th><th></th></tr>
+ return `<div class="kpi"><div><span>Product codes</span><b>${P.length}</b><small>each with a Tangier and a Zaragoza version</small></div>
+ <div><span>Versions with processes entered</span><b>${comp.TNG+comp.ZGZ} / ${P.length*2}</b><small>Tangier ${comp.TNG} · Zaragoza ${comp.ZGZ}</small></div>
+ <div><span>Annual margin · Tangier</span><b class="${mar.TNG<0?"neg":""}">${fm(mar.TNG/1e6,2)} M€</b><small>${rev.TNG?fp(mar.TNG/rev.TNG)+" of revenue":"no price entered"}</small></div>
+ <div><span>Annual margin · Zaragoza</span><b class="${mar.ZGZ<0?"neg":""}">${fm(mar.ZGZ/1e6,2)} M€</b><small>${rev.ZGZ?fp(mar.ZGZ/rev.ZGZ)+" of revenue":"no price entered"}</small></div></div>
+ <div class="card"><h2>Industrial cost by code: Tangier vs Zaragoza</h2><p class="sub">Where a version has no processes entered, the cost includes materials only and is not comparable. Click “Open” for the detailed sheet.</p>
+ <table><tr><th>Product</th><th>Code</th><th class="n">Volume</th><th class="n t">Ind. cost Tangier</th><th class="n z">Ind. cost Zaragoza</th><th class="n">Δ Zaragoza − Tangier</th><th style="width:210px">Ind. cost</th><th class="n t">Margin % Tangier</th><th class="n z">Margin % Zaragoza</th><th></th></tr>
  ${P.map((p,i)=>{const t=R[i].TNG,z=R[i].ZGZ,ok=t.complete&&z.complete;return `<tr><td><b>${p.desc}</b></td><td>${p.code}</td><td class="n">${fm(p.v.TNG.volume,0)}</td>
- <td class="n t">${fm(t.ic,3)} ${t.complete?"":'<span class="badge b-es">solo mat.</span>'}</td><td class="n z">${fm(z.ic,3)} ${z.complete?"":'<span class="badge b-es">solo mat.</span>'}</td><td class="n ${ok?(z.ic-t.ic>0?"neg":"pos"):""}">${ok?sg(z.ic-t.ic):"—"}</td>
+ <td class="n t">${fm(t.ic,3)} ${t.complete?"":'<span class="badge b-es">materials only</span>'}</td><td class="n z">${fm(z.ic,3)} ${z.complete?"":'<span class="badge b-es">materials only</span>'}</td><td class="n ${ok?(z.ic-t.ic>0?"neg":"pos"):""}">${ok?sg(z.ic-t.ic):"—"}</td>
  <td><div class="bar"><i style="width:${t.ic/maxv*100}%;background:#c2410c"></i></div><div class="bar"><i style="width:${z.ic/maxv*100}%;background:#1d4ed8"></i></div></td>
- <td class="n t ${t.margin<0?"neg":""}">${fp(t.marginPct)}</td><td class="n z ${z.margin<0?"neg":""}">${fp(z.marginPct)}</td><td><button class="btn sec" onclick="openProd('${p.id}','CMP')">Apri</button></td></tr>`}).join("")}</table>
- <div class="row"><button class="btn sec" onclick="exportCSV()">⬇ Esporta tabella (CSV)</button></div></div>`}
-function exportCSV(){const rows=[["Codice","Descrizione","Cliente","Progetto","Stabilimento","Volume","Materiali","Trasformazione","Costo industriale","Prezzo calcolato","Prezzo vendita","Margine","Margine %"]];
+ <td class="n t ${t.margin<0?"neg":""}">${fp(t.marginPct)}</td><td class="n z ${z.margin<0?"neg":""}">${fp(z.marginPct)}</td><td><button class="btn sec" onclick="openProd('${p.id}','CMP')">Open</button></td></tr>`}).join("")}</table>
+ <div class="row"><button class="btn sec" onclick="exportCSV()">⬇ Export table (CSV)</button></div></div>`}
+function exportCSV(){const rows=[["Code","Description","Customer","Project","Plant","Volume","Materials","Conversion","Industrial cost","Calculated price","Selling price","Margin","Margin %"]];
  S.products.forEach(p=>PL.forEach(pl=>{const c=pcalc(p,pl),v=p.v[pl];rows.push([p.code,p.desc,p.customer,p.project,PN[pl],v.volume,c.mat,c.conv,c.ic,c.calc,v.price,c.margin,c.marginPct])}));
- const a=document.createElement("a");a.href=URL.createObjectURL(new Blob(["﻿"+rows.map(r=>r.map(x=>`"${String(x??"").replace(/"/g,'""')}"`).join(";")).join("\n")],{type:"text/csv"}));a.download="costi_prodotto.csv";a.click()}
+ const a=document.createElement("a");a.href=URL.createObjectURL(new Blob(["﻿"+rows.map(r=>r.map(x=>`"${String(x??"").replace(/"/g,'""')}"`).join(";")).join("\n")],{type:"text/csv"}));a.download="product_costs.csv";a.click()}
 
 function pageInp(){
  const calc={_avail:pl=>`fm(derived(S.plants.${pl}.params).avail,0)+' h'`,_net:pl=>`fm(derived(S.plants.${pl}.params).net,2)+' h'`,_mod:pl=>`fm(derived(S.plants.${pl}.params).mod,2)+' €/h'`};
- let h=`<div class="info">Dati di base dei due stabilimenti affiancati. I valori sono quelli del business case e del file Adler; le etichette <span class="badge b-es">Stima · da validare</span> sono ipotesi mie. Ogni modifica ricalcola subito macchine e prodotti.</div>`;
- for(const [sec,rows] of PDEF){h+=`<div class="card"><h2>${sec}</h2><table style="margin-top:8px"><tr><th>Parametro</th><th class="n t" style="width:150px">Tangeri</th><th class="n z" style="width:150px">Zaragoza</th><th>UM</th><th>Fonte T / Z</th><th>Nota</th></tr>`;
+ let h=`<div class="info">Basic data of the two plants side by side. Values come from the business case and the Adler file; fields tagged <span class="badge b-es">Estimate · to validate</span> are assumptions. Every change instantly recalculates machines and products.</div>`;
+ for(const [sec,rows] of PDEF){h+=`<div class="card"><h2>${sec}</h2><table style="margin-top:8px"><tr><th>Parameter</th><th class="n t" style="width:150px">Tangier</th><th class="n z" style="width:150px">Zaragoza</th><th>Unit</th><th>Source T / Z</th><th>Note</th></tr>`;
   for(const [k,l,u,dn] of rows){const d=k[0]==="_";const [sT,sZ,n0]=d?["DE","DE",""]:NOTE(k),n=n0||dn||"";
    const cell=pl=>d?O(calc[k](pl),"tot "+(pl==="TNG"?"t":"z")):`<td class="${pl==="TNG"?"t":"z"}">${PCT.has(k)?inP(`plants.${pl}.params.${k}`,S.plants[pl].params[k]):inN(`plants.${pl}.params.${k}`,S.plants[pl].params[k])}</td>`;
    h+=`<tr><td>${l}</td>${cell("TNG")}${cell("ZGZ")}<td>${u}</td><td><span class="badge ${SRC[sT][1]}">${SRC[sT][0]}</span> <span class="badge ${SRC[sZ][1]}">${SRC[sZ][0]}</span></td><td style="white-space:normal;min-width:300px;color:#6b7590">${n}</td></tr>`}
   h+=`</table></div>`}
- h+=`<div class="card"><h2>Come si imputano i costi fissi alle macchine</h2><p class="sub">GU = grado di utilizzo macchina (volumi × tempi ÷ ore disponibili).</p><table><tr><th>Opzione</th><th class="t">Tangeri</th><th class="z">Zaragoza</th><th>Nota</th></tr>`;
+ h+=`<div class="card"><h2>How fixed costs are charged to machines</h2><p class="sub">UR = machine utilisation rate (volumes × times ÷ available hours).</p><table><tr><th>Option</th><th class="t">Tangier</th><th class="z">Zaragoza</th><th>Note</th></tr>`;
  for(const [k,l,n] of FDEF)h+=`<tr><td>${l}</td><td class="t">${inC(`plants.TNG.flags.${k}`,S.plants.TNG.flags[k])}</td><td class="z">${inC(`plants.ZGZ.flags.${k}`,S.plants.ZGZ.flags[k])}</td><td style="color:#6b7590">${n}</td></tr>`;
- h+=`<tr><td>Impianto già ammortizzato (escludi ammortamento dal rate)</td><td class="t">${inC("plants.TNG.params.depExcl",S.plants.TNG.params.depExcl)}</td><td class="z">${inC("plants.ZGZ.params.depExcl",S.plants.ZGZ.params.depExcl)}</td><td style="color:#6b7590">Adler “DEPRECIATION”</td></tr></table></div>`;return h}
+ h+=`<tr><td>Fully depreciated plant (exclude depreciation from the rate)</td><td class="t">${inC("plants.TNG.params.depExcl",S.plants.TNG.params.depExcl)}</td><td class="z">${inC("plants.ZGZ.params.depExcl",S.plants.ZGZ.params.depExcl)}</td><td style="color:#6b7590">Adler “DEPRECIATION”</td></tr></table></div>`;return h}
 
 function pageMR(){const pl=mpl,M=S.plants[pl].machines;
  let h=`<div class="tabs">${PL.map(k=>`<button class="${mpl===k?"on ":""}${k==="TNG"?"T":"Z"}" onclick="mpl='${k}';render()">${PN[k]}</button>`).join("")}</div>
- <div class="card"><h2>Machine rate (€/h) · ${PN[pl]}</h2><p class="sub">Rate = ammortamento + manutenzione + energia + MOD + indiretti. Celle gialle = dati da validare: prezzi macchina da CAPEX del business case (valori “all-in Tangeri”, medie per tipologia, usati anche per Zaragoza: non c'è un'offerta separata); kW e operatori sono stime mie. Operatori anche frazionari (0,5 = un operatore ogni due macchine).</p>
- <table><tr><th>Macchina / processo</th><th>Settore</th><th class="n">N°</th><th class="n">Prezzo unit. €</th><th class="n">Residuo %</th><th class="n">Vita h</th><th class="n">kW</th><th class="n">Operatori</th><th>GU</th><th class="n">GU man. %</th>
- <th class="n">Amm.</th><th class="n">Manut.</th><th class="n">Energia</th><th class="n">MOD</th><th class="n">Indiretti</th><th class="n">GU %</th><th class="n">RATE €/h</th><th class="n">€/min</th><th></th></tr>`;
+ <div class="card"><h2>Machine rate (€/h) · ${PN[pl]}</h2><p class="sub">Rate = depreciation + maintenance + energy + DL + indirect. Yellow cells = data to validate: machine prices from the business-case CAPEX (“all-in Tangier” values, averaged by type, also used for Zaragoza: no separate quotation yet); kW and operators are estimates. Operators can be fractional (0.5 = one operator per two machines).</p>
+ <table><tr><th>Machine / process</th><th>Sector</th><th class="n">Qty</th><th class="n">Unit price €</th><th class="n">Residual %</th><th class="n">Life h</th><th class="n">kW</th><th class="n">Operators</th><th>UR</th><th class="n">UR manual %</th>
+ <th class="n">Depr.</th><th class="n">Maint.</th><th class="n">Energy</th><th class="n">DL</th><th class="n">Indirect</th><th class="n">UR %</th><th class="n">RATE €/h</th><th class="n">€/min</th><th></th></tr>`;
  M.forEach((m,i)=>{const p=`plants.${pl}.machines.${i}.`,R=`mrate(S.plants.${pl}.machines[${i}],'${pl}')`;
   h+=`<tr class="${m.est?"est":""}"><td style="min-width:240px">${inT(p+"name",m.name)}</td><td style="min-width:140px">${inT(p+"sector",m.sector||"")}</td><td>${inN(p+"qty",m.qty,1)}</td><td>${inN(p+"price",m.price)}</td><td>${inP(p+"resid",m.resid)}</td><td>${inN(p+"life",m.life)}</td><td>${inN(p+"kw",m.kw)}</td><td>${inN(p+"workers",m.workers)}</td>
-  <td><select onchange="setPath('${p}guMode',this.value);render()"><option value="auto" ${m.guMode==="auto"?"selected":""}>auto</option><option value="manual" ${m.guMode==="manual"?"selected":""}>manuale</option></select></td><td>${m.guMode==="manual"?inP(p+"guManual",m.guManual):""}</td>
+  <td><select onchange="setPath('${p}guMode',this.value);render()"><option value="auto" ${m.guMode==="auto"?"selected":""}>auto</option><option value="manual" ${m.guMode==="manual"?"selected":""}>manual</option></select></td><td>${m.guMode==="manual"?inP(p+"guManual",m.guManual):""}</td>
   ${O(`fm(${R}.G)`)}${O(`fm(${R}.I)`)}${O(`fm(${R}.M)`)}${O(`fm(${R}.R)`)}${O(`fm(${R}.T)`)}${O(`fp(${R}.gu)`)}${O(`fm(${R}.X)`,"tot")}${O(`fm(${R}.Y,3)`)}
   <td><button class="btn del" onclick="S.plants.${pl}.machines.splice(${i},1);save();render()">✕</button></td></tr>`});
- return h+`</table><div class="row"><button class="btn" onclick="S.plants.${pl}.machines.push({id:nid('m'),name:'Nuova macchina',sector:'',qty:1,price:0,resid:.2,life:66000,kw:0,workers:1,guMode:'auto'});save();render()">+ Aggiungi macchina</button></div></div>
- <div class="card"><h2>Come si legge</h2><ul><li><b>Ammortamento</b> = prezzo × (1 − residuo) ÷ vita (h).</li><li><b>Manutenzione</b> = % manutenzione × ammortamento orario.</li><li><b>Energia</b> = kW × fattore utilizzo × €/kWh.</li><li><b>MOD</b> = operatori × costo orario operatore (pagina Input, per stabilimento).</li><li><b>Indiretti</b> = MOD × burden rate.</li><li><b>GU automatico</b> = Σ(volume × tempo ciclo ÷ cavità) dei prodotti di quello stabilimento ÷ (ore disponibili × 3600 × n° macchine). Lo usano solo i costi marcati “÷ GU” in Input.</li><li>Le macchine di un nuovo stabilimento si aggiungono qui; i processi dei prodotti le selezionano per nome.</li></ul></div>`}
+ return h+`</table><div class="row"><button class="btn" onclick="S.plants.${pl}.machines.push({id:nid('m'),name:'New machine',sector:'',qty:1,price:0,resid:.2,life:66000,kw:0,workers:1,guMode:'auto'});save();render()">+ Add machine</button></div></div>
+ <div class="card"><h2>How to read it</h2><ul><li><b>Depreciation</b> = price × (1 − residual) ÷ life (h).</li><li><b>Maintenance</b> = maintenance % × hourly depreciation.</li><li><b>Energy</b> = kW × utilisation factor × €/kWh.</li><li><b>DL</b> = operators × operator hourly cost (Inputs page, per plant).</li><li><b>Indirect</b> = DL × burden rate.</li><li><b>Automatic UR</b> = Σ(volume × cycle time ÷ cavities) of that plant’s products ÷ (available hours × 3600 × no. of machines). Only costs marked “÷ UR” in Inputs use it.</li><li>Machines for a new plant are added here; product processes select them by name.</li></ul></div>`}
 
-function pageMat(){let h=`<div class="card"><h2>Costi materiali</h2><p class="sub">Un materiale ha un costo per stabilimento. Il business case riporta solo il costo materiale per pezzo (Gate 3 MEK), identico per Marocco e Spagna: una riga per prodotto. Le quantità si inseriscono nella scheda prodotto.</p>
- <table><tr><th>Codice</th><th>Descrizione</th><th>UM</th><th class="n t">Costo Tangeri €</th><th class="n z">Costo Zaragoza €</th><th>Usato in</th><th></th></tr>`;
+function pageMat(){let h=`<div class="card"><h2>Material costs</h2><p class="sub">Each material has a cost per plant. The business case only gives the material cost per piece (Gate 3 MEK), identical for Morocco and Spain: one line per product. Quantities are entered in the product sheet.</p>
+ <table><tr><th>Code</th><th>Description</th><th>UoM</th><th class="n t">Cost Tangier €</th><th class="n z">Cost Zaragoza €</th><th>Used in</th><th></th></tr>`;
  S.materials.forEach((m,i)=>{const p=`materials.${i}.`;const u=S.products.filter(x=>x.bom.some(b=>b.matId===m.id)).length;
-  h+=`<tr><td>${inT(p+"code",m.code)}</td><td style="min-width:320px">${inT(p+"desc",m.desc)}</td><td style="width:80px">${inT(p+"unit",m.unit)}</td><td class="t" style="width:140px">${inN(p+"cost.TNG",m.cost.TNG)}</td><td class="z" style="width:140px">${inN(p+"cost.ZGZ",m.cost.ZGZ)}</td><td>${u} prodotti</td><td><button class="btn del" onclick="S.materials.splice(${i},1);save();render()">✕</button></td></tr>`});
- return h+`</table><div class="row"><button class="btn" onclick="S.materials.push({id:nid('x'),code:'',desc:'',unit:'KG',cost:{TNG:0,ZGZ:0}});save();render()">+ Aggiungi materiale</button></div></div>`}
+  h+=`<tr><td>${inT(p+"code",m.code)}</td><td style="min-width:320px">${inT(p+"desc",m.desc)}</td><td style="width:80px">${inT(p+"unit",m.unit)}</td><td class="t" style="width:140px">${inN(p+"cost.TNG",m.cost.TNG)}</td><td class="z" style="width:140px">${inN(p+"cost.ZGZ",m.cost.ZGZ)}</td><td>${u} products</td><td><button class="btn del" onclick="S.materials.splice(${i},1);save();render()">✕</button></td></tr>`});
+ return h+`</table><div class="row"><button class="btn" onclick="S.materials.push({id:nid('x'),code:'',desc:'',unit:'KG',cost:{TNG:0,ZGZ:0}});save();render()">+ Add material</button></div></div>`}
 
-function pagePrd(){return `<div class="row"><button class="btn" onclick="newProd()">+ Nuovo codice prodotto</button></div><div class="pgrid">${S.products.map(p=>{const t=pcalc(p,"TNG"),z=pcalc(p,"ZGZ");
- const box=(c,k)=>`<div class="${k}"><span>${k==="t"?"Tangeri":"Zaragoza"}</span><b>${fm(c.ic,3)} €</b><span>${c.complete?"margine "+fp(c.marginPct):"processi da inserire"}</span></div>`;
+function pagePrd(){return `<div class="row"><button class="btn" onclick="newProd()">+ New product code</button></div><div class="pgrid">${S.products.map(p=>{const t=pcalc(p,"TNG"),z=pcalc(p,"ZGZ");
+ const box=(c,k)=>`<div class="${k}"><span>${k==="t"?"Tangier":"Zaragoza"}</span><b>${fm(c.ic,3)} €</b><span>${c.complete?"margin "+fp(c.marginPct):"processes to enter"}</span></div>`;
  return `<div class="pc" onclick="openProd('${p.id}','CMP')"><h4>${p.desc}</h4><div class="pn">${p.code} · ${p.customer||""} ${p.project||""}</div><div class="two">${box(t,"t")}${box(z,"z")}</div>
- <span class="badge b-de">${fm(p.v.TNG.volume,0)} pz/anno</span></div>`}).join("")}</div>`}
-function newProd(){const e=()=>({volume:0,price:0,logistic:0,ops:[]});const p={id:nid("p"),code:"NUOVO",desc:"Nuovo prodotto",customer:"",project:"",notes:"",bom:[],v:{TNG:e(),ZGZ:e()}};S.products.push(p);openProd(p.id,"TNG")}
-function dupProd(){const p=S.products.find(x=>x.id===selProd),q=JSON.parse(JSON.stringify(p));q.id=nid("p");q.code+="-copia";S.products.push(q);save();openProd(q.id)}
-function delProd(){const p=S.products.find(x=>x.id===selProd);if(!confirm("Eliminare "+p.code+"?"))return;S.products=S.products.filter(x=>x!==p);save();go("prd")}
-function addBom(ix){if(!S.materials.length){alert("Prima inserisci materiali");return}S.products[ix].bom.push({matId:S.materials[0].id,qty:0});save();render()}
-function addOp(ix,pl){S.products[ix].v[pl].ops.push({desc:"Nuova operazione",machineId:"MOD",cav:1,cycle:0,eff:S.plants[pl].params.oee});save();render()}
-function copyOps(ix,from,to){if(!confirm("Copiare le operazioni da "+PN[from]+" a "+PN[to]+" (sostituisce quelle esistenti)? Le macchine vengono associate per codice interno: controllale.")) return;S.products[ix].v[to].ops=JSON.parse(JSON.stringify(S.products[ix].v[from].ops));save();render()}
+ <span class="badge b-de">${fm(p.v.TNG.volume,0)} pcs/year</span></div>`}).join("")}</div>`}
+function newProd(){const e=()=>({volume:0,price:0,logistic:0,ops:[]});const p={id:nid("p"),code:"NEW",desc:"New product",customer:"",project:"",notes:"",bom:[],v:{TNG:e(),ZGZ:e()}};S.products.push(p);openProd(p.id,"TNG")}
+function dupProd(){const p=S.products.find(x=>x.id===selProd),q=JSON.parse(JSON.stringify(p));q.id=nid("p");q.code+="-copy";S.products.push(q);save();openProd(q.id)}
+function delProd(){const p=S.products.find(x=>x.id===selProd);if(!confirm("Delete "+p.code+"?"))return;S.products=S.products.filter(x=>x!==p);save();go("prd")}
+function addBom(ix){if(!S.materials.length){alert("Enter materials first");return}S.products[ix].bom.push({matId:S.materials[0].id,qty:0});save();render()}
+function addOp(ix,pl){S.products[ix].v[pl].ops.push({desc:"New operation",machineId:"MOD",cav:1,cycle:0,eff:S.plants[pl].params.oee});save();render()}
+function copyOps(ix,from,to){if(!confirm("Copy operations from "+PN[from]+" to "+PN[to]+" (replaces existing ones)? Machines are matched by internal code: please check them.")) return;S.products[ix].v[to].ops=JSON.parse(JSON.stringify(S.products[ix].v[from].ops));save();render()}
 
 function pagePD(){const p=S.products.find(x=>x.id===selProd);if(!p){page="prd";return pagePrd()}
  const ix=S.products.indexOf(p),b=`products.${ix}.`;
- let h=`<button class="back" onclick="go('prd')">← Tutti i prodotti</button>
- <div class="card"><div class="row" style="justify-content:space-between"><div><h2 style="font-size:19px">${p.desc}</h2><span class="sub">${p.code} · versioni Tangeri e Zaragoza</span></div><div class="row"><button class="btn sec" onclick="dupProd()">Duplica</button><button class="btn del" onclick="delProd()">Elimina</button></div></div>
- <div class="grid"><div class="f"><label>Codice / disegno</label>${inT(b+"code",p.code)}</div><div class="f"><label>Descrizione</label>${inT(b+"desc",p.desc)}</div><div class="f"><label>Cliente</label>${inT(b+"customer",p.customer)}</div><div class="f"><label>Progetto</label>${inT(b+"project",p.project)}</div></div>
- <div class="f" style="margin-top:10px"><label>Note</label>${inT(b+"notes",p.notes)}</div></div>${tabs()}`;
- /* BOM (comune ai due stabilimenti) */
- const bomCard=(pl)=>{const C=`pcalc(S.products[${ix}],'${pl}')`;let s=`<div class="card"><h2>1 · Distinta materiali</h2><p class="sub">La distinta (quantità per pezzo, comprensive di sfrido) è comune alle due versioni; il costo unitario dei materiali è quello dello stabilimento${pl==="CMP"?"":" "+PN[pl]}. Quantità negative = recuperi.</p><table><tr><th>Materiale</th><th>UM</th>${pl==="CMP"?`<th class="n t">€/unit Tangeri</th><th class="n z">€/unit Zaragoza</th>`:`<th class="n">Costo unit. €</th>`}<th class="n">Quantità / pz</th>${pl==="CMP"?`<th class="n t">€/pz Tangeri</th><th class="n z">€/pz Zaragoza</th>`:`<th class="n">€ / pz</th><th class="n">% materiali</th>`}<th></th></tr>`;
+ let h=`<button class="back" onclick="go('prd')">← All products</button>
+ <div class="card"><div class="row" style="justify-content:space-between"><div><h2 style="font-size:19px">${p.desc}</h2><span class="sub">${p.code} · Tangier and Zaragoza versions</span></div><div class="row"><button class="btn sec" onclick="dupProd()">Duplicate</button><button class="btn del" onclick="delProd()">Delete</button></div></div>
+ <div class="grid"><div class="f"><label>Code / drawing</label>${inT(b+"code",p.code)}</div><div class="f"><label>Description</label>${inT(b+"desc",p.desc)}</div><div class="f"><label>Customer</label>${inT(b+"customer",p.customer)}</div><div class="f"><label>Project</label>${inT(b+"project",p.project)}</div></div>
+ <div class="f" style="margin-top:10px"><label>Notes</label>${inT(b+"notes",p.notes)}</div></div>${tabs()}`;
+ /* BOM (shared by the two plants) */
+ const bomCard=(pl)=>{const C=`pcalc(S.products[${ix}],'${pl}')`;let s=`<div class="card"><h2>1 · Bill of materials</h2><p class="sub">The BOM (quantity per piece, scrap included) is shared by the two versions; the unit cost of materials is that of the plant${pl==="CMP"?"":" "+PN[pl]}. Negative quantities = recoveries.</p><table><tr><th>Material</th><th>UoM</th>${pl==="CMP"?`<th class="n t">€/unit Tangier</th><th class="n z">€/unit Zaragoza</th>`:`<th class="n">Unit cost €</th>`}<th class="n">Quantity / pc</th>${pl==="CMP"?`<th class="n t">€/pc Tangier</th><th class="n z">€/pc Zaragoza</th>`:`<th class="n">€ / pc</th><th class="n">% of materials</th>`}<th></th></tr>`;
   p.bom.forEach((r,i)=>{const q=b+`bom.${i}.`,m=S.materials.find(x=>x.id===r.matId),mc=k=>`fm(S.materials.find(x=>x.id==='${r.matId}')?.cost.${k},5)`;
    s+=`<tr><td style="min-width:300px"><select onchange="setPath('${q}matId',this.value);render()">${S.materials.map(x=>`<option value="${x.id}" ${x.id===r.matId?"selected":""}>${x.code} · ${x.desc}</option>`).join("")}</select></td><td>${m?m.unit:""}</td>`+
    (pl==="CMP"?`${O(mc("TNG"),"t")}${O(mc("ZGZ"),"z")}<td style="width:130px">${inN(q+"qty",r.qty)}</td>${O(`fm(pcalc(S.products[${ix}],'TNG').bomRows[${i}],4)`,"t")}${O(`fm(pcalc(S.products[${ix}],'ZGZ').bomRows[${i}],4)`,"z")}`:
    `${O(mc(pl))}<td style="width:130px">${inN(q+"qty",r.qty)}</td>${O(`fm(${C}.bomRows[${i}],4)`)}${O(`fp(${C}.bomRows[${i}]/${C}.mat)`)}`)+`<td><button class="btn del" onclick="S.products[${ix}].bom.splice(${i},1);save();render()">✕</button></td></tr>`});
-  s+=pl==="CMP"?`<tr class="tot"><td colspan="5">Totale materie prime</td>${O(`fm(pcalc(S.products[${ix}],'TNG').mat,4)`,"tot t")}${O(`fm(pcalc(S.products[${ix}],'ZGZ').mat,4)`,"tot z")}<td></td></tr>`:`<tr class="tot"><td colspan="4">Totale materie prime / componenti</td>${O(`fm(${C}.mat,4)`,"tot")}<td></td><td></td></tr>`;
-  return s+`</table><div class="row"><button class="btn sec" onclick="addBom(${ix})">+ Riga materiale</button></div></div>`};
+  s+=pl==="CMP"?`<tr class="tot"><td colspan="5">Total raw materials</td>${O(`fm(pcalc(S.products[${ix}],'TNG').mat,4)`,"tot t")}${O(`fm(pcalc(S.products[${ix}],'ZGZ').mat,4)`,"tot z")}<td></td></tr>`:`<tr class="tot"><td colspan="4">Total raw materials / components</td>${O(`fm(${C}.mat,4)`,"tot")}<td></td><td></td></tr>`;
+  return s+`</table><div class="row"><button class="btn sec" onclick="addBom(${ix})">+ Material line</button></div></div>`};
 
  if(tab==="CMP"){
   const row=(l,k,cls="")=>`<tr class="${cls}"><td>${l}</td>${O(`fm(pcalc(S.products[${ix}],'TNG').${k},4)`,"t "+cls)}${O(`fm(pcalc(S.products[${ix}],'ZGZ').${k},4)`,"z "+cls)}${O(`sg(pcalc(S.products[${ix}],'ZGZ').${k}-pcalc(S.products[${ix}],'TNG').${k})`,cls)}</tr>`;
   const T=`pcalc(S.products[${ix}],'TNG')`,Z=`pcalc(S.products[${ix}],'ZGZ')`;
-  h+=`<div class="card"><h2>Confronto Tangeri vs Zaragoza (€/pz)</h2><p class="sub">Δ positivo = Zaragoza più cara. I due prezzi di vendita e i volumi si inseriscono nelle rispettive schede.</p>
-  <table style="max-width:820px"><tr><th></th><th class="n t">Tangeri</th><th class="n z">Zaragoza</th><th class="n">Δ ZGZ − TNG</th></tr>
-  ${row("Materie prime / componenti","mat")}${row("Trasformazione (machine rate × tempi)","conv")}${row("Sub-totale","sub","tot")}${row("Scarto","scrap")}${row("Logistica","log")}${row("COSTO INDUSTRIALE","ic","tot")}${row("Mark-up","markup")}${row("PREZZO CALCOLATO COL BREAKDOWN","calc","tot")}
-  <tr><td>Prezzo di vendita inserito</td>${O(`${T}.hasPrice?fm(S.products[${ix}].v.TNG.price,4):'—'`,"t")}${O(`${Z}.hasPrice?fm(S.products[${ix}].v.ZGZ.price,4):'—'`,"z")}<td></td></tr>
-  <tr><td>Margine (prezzo − costo industriale)</td>${O(`${T}.hasPrice?fm(${T}.margin,4):'—'`,"t")}${O(`${Z}.hasPrice?fm(${Z}.margin,4):'—'`,"z")}<td></td></tr>
-  <tr><td>Margine %</td>${O(`fp(${T}.marginPct)`,"t")}${O(`fp(${Z}.marginPct)`,"z")}<td></td></tr></table></div>
-  <div class="card"><h2>Struttura del prezzo calcolato</h2><div class="sub"><span class="badge b-t">Tangeri</span></div><div data-c="${stackOf(ix,"TNG").replace(/"/g,"&quot;")}"></div><div class="sub"><span class="badge b-z">Zaragoza</span></div><div data-c="${stackOf(ix,"ZGZ").replace(/"/g,"&quot;")}"></div></div>`+bomCard("CMP");
+  h+=`<div class="card"><h2>Tangier vs Zaragoza comparison (€/pc)</h2><p class="sub">Positive Δ = Zaragoza more expensive. The two selling prices and volumes are entered in the respective tabs.</p>
+  <table style="max-width:820px"><tr><th></th><th class="n t">Tangier</th><th class="n z">Zaragoza</th><th class="n">Δ ZGZ − TNG</th></tr>
+  ${row("Raw materials / components","mat")}${row("Conversion (machine rate × times)","conv")}${row("Subtotal","sub","tot")}${row("Scrap","scrap")}${row("Logistics","log")}${row("INDUSTRIAL COST","ic","tot")}${row("Mark-up","markup")}${row("PRICE CALCULATED FROM BREAKDOWN","calc","tot")}
+  <tr><td>Selling price entered</td>${O(`${T}.hasPrice?fm(S.products[${ix}].v.TNG.price,4):'—'`,"t")}${O(`${Z}.hasPrice?fm(S.products[${ix}].v.ZGZ.price,4):'—'`,"z")}<td></td></tr>
+  <tr><td>Margin (price − industrial cost)</td>${O(`${T}.hasPrice?fm(${T}.margin,4):'—'`,"t")}${O(`${Z}.hasPrice?fm(${Z}.margin,4):'—'`,"z")}<td></td></tr>
+  <tr><td>Margin %</td>${O(`fp(${T}.marginPct)`,"t")}${O(`fp(${Z}.marginPct)`,"z")}<td></td></tr></table></div>
+  <div class="card"><h2>Structure of the calculated price</h2><div class="sub"><span class="badge b-t">Tangier</span></div><div data-c="${stackOf(ix,"TNG").replace(/"/g,"&quot;")}"></div><div class="sub"><span class="badge b-z">Zaragoza</span></div><div data-c="${stackOf(ix,"ZGZ").replace(/"/g,"&quot;")}"></div></div>`+bomCard("CMP");
   return h}
  const pl=tab,v=p.v[pl],vb=`products.${ix}.v.${pl}.`,C=`pcalc(S.products[${ix}],'${pl}')`,other=pl==="TNG"?"ZGZ":"TNG";
- h+=`<div class="card"><h2>Dati commerciali · ${PN[pl]}</h2><div class="grid"><div class="f"><label>Volume annuo (pz)</label>${inN(vb+"volume",v.volume)}</div><div class="f"><label>Logistica JIT/JIS (€/pz)</label>${inN(vb+"logistic",v.logistic)}</div><div class="f"><label>Prezzo di vendita (commerciale) €/pz</label>${inN(vb+"price",v.price)}</div></div></div>
- <div class="kpi"><div><span>Costo industriale</span><b>${S_(`fm(${C}.ic,4)`)} €</b></div><div><span>Prezzo calcolato (breakdown)</span><b>${S_(`fm(${C}.calc,4)`)} €</b></div>
- <div><span>Margine (prezzo − costo ind.)</span><b>${S_(`${C}.hasPrice?fm(${C}.margin,4)+' €':'inserire prezzo'`)}</b><small>${S_(`fp(${C}.marginPct)+' sul prezzo'`)}</small></div>
- <div><span>Margine dopo G&A</span><b>${S_(`${C}.hasPrice?fm(${C}.afterGA,4)+' €':'—'`)}</b><small>${S_(`fp(${C}.afterGApct)`)}</small></div>
- <div><span>Margine annuo</span><b>${S_(`${C}.hasPrice?fm(${C}.margin*${num(v.volume)}/1000,1)+' k€':'—'`)}</b><small>volume × margine</small></div></div>
- <div class="card"><h2>Struttura del prezzo calcolato · ${PN[pl]}</h2><div data-c="stack(${C})" style="margin-top:10px"></div></div>`+bomCard(pl)+
- `<div class="card"><h2>2 · Tempi ciclo e trasformazione · ${PN[pl]}</h2><p class="sub">Tempo di riferimento = tempo ciclo ÷ efficienza ÷ cavità (o persone). €/pz = tempo rif. × rate €/h ÷ 3600. Per lavorazioni manuali scegli “MOD manuale” (costo orario operatore di ${PN[pl]}). Le macchine sono quelle dello stabilimento (pagina Macchine).</p>
- <table><tr><th>Operazione</th><th>Macchina</th><th class="n">Cavità / persone</th><th class="n">Tempo ciclo (s)</th><th class="n">Efficienza %</th><th class="n">Tempo rif. (s)</th><th class="n">Rate €/h</th><th class="n">€ / pz</th><th class="n">% trasf.</th><th></th></tr>`;
+ h+=`<div class="card"><h2>Commercial data · ${PN[pl]}</h2><div class="grid"><div class="f"><label>Annual volume (pcs)</label>${inN(vb+"volume",v.volume)}</div><div class="f"><label>JIT/JIS logistics (€/pc)</label>${inN(vb+"logistic",v.logistic)}</div><div class="f"><label>Selling price (Sales) €/pc</label>${inN(vb+"price",v.price)}</div></div></div>
+ <div class="kpi"><div><span>Industrial cost</span><b>${S_(`fm(${C}.ic,4)`)} €</b></div><div><span>Calculated price (breakdown)</span><b>${S_(`fm(${C}.calc,4)`)} €</b></div>
+ <div><span>Margin (price − ind. cost)</span><b>${S_(`${C}.hasPrice?fm(${C}.margin,4)+' €':'enter price'`)}</b><small>${S_(`fp(${C}.marginPct)+' of price'`)}</small></div>
+ <div><span>Margin after G&A</span><b>${S_(`${C}.hasPrice?fm(${C}.afterGA,4)+' €':'—'`)}</b><small>${S_(`fp(${C}.afterGApct)`)}</small></div>
+ <div><span>Annual margin</span><b>${S_(`${C}.hasPrice?fm(${C}.margin*${num(v.volume)}/1000,1)+' k€':'—'`)}</b><small>volume × margin</small></div></div>
+ <div class="card"><h2>Structure of the calculated price · ${PN[pl]}</h2><div data-c="stack(${C})" style="margin-top:10px"></div></div>`+bomCard(pl)+
+ `<div class="card"><h2>2 · Cycle times and conversion · ${PN[pl]}</h2><p class="sub">Reference time = cycle time ÷ efficiency ÷ cavities (or people). €/pc = ref. time × rate €/h ÷ 3600. For manual work choose “Manual DL” (operator hourly cost of ${PN[pl]}). Machines are those of the plant (Machines page).</p>
+ <table><tr><th>Operation</th><th>Machine</th><th class="n">Cavities / people</th><th class="n">Cycle time (s)</th><th class="n">Efficiency %</th><th class="n">Ref. time (s)</th><th class="n">Rate €/h</th><th class="n">€ / pc</th><th class="n">% conv.</th><th></th></tr>`;
  v.ops.forEach((o,i)=>{const q=vb+`ops.${i}.`;
-  h+=`<tr class="${o.est?"est":""}"><td style="min-width:220px">${inT(q+"desc",o.desc)}</td><td style="min-width:230px"><select onchange="setPath('${q}machineId',this.value);render()"><option value="MOD" ${o.machineId==="MOD"?"selected":""}>MOD manuale</option>${S.plants[pl].machines.map(m=>`<option value="${m.id}" ${m.id===o.machineId?"selected":""}>${m.name}</option>`).join("")}</select></td><td>${inN(q+"cav",o.cav)}</td><td>${inN(q+"cycle",o.cycle)}</td><td>${inP(q+"eff",o.eff)}</td>${O(`fm(${C}.opRows[${i}].L,2)`)}${O(`fm(${C}.opRows[${i}].rate,2)`)}${O(`fm(${C}.opRows[${i}].N,4)`,"tot")}${O(`fp(${C}.opRows[${i}].N/${C}.conv)`)}<td><button class="btn del" onclick="S.products[${ix}].v.${pl}.ops.splice(${i},1);save();render()">✕</button></td></tr>`});
- h+=`<tr class="tot"><td colspan="7">Totale trasformazione</td>${O(`fm(${C}.conv,4)`,"tot")}<td></td><td></td></tr></table>
- <div class="row"><button class="btn sec" onclick="addOp(${ix},'${pl}')">+ Operazione</button><button class="btn sec" onclick="copyOps(${ix},'${other}','${pl}')">Copia operazioni da ${PN[other]}</button></div></div>
- <div class="card"><h2>3 · Dal costo al prezzo · ${PN[pl]}</h2><table style="max-width:640px">
- ${[["Materie prime / componenti","mat"],["Trasformazione","conv"],["Sub-totale","sub","tot"],["Scarto "+fp(S.plants[pl].params.scrap)+" su sub-totale","scrap"],["Logistica JIT/JIS","log"],["COSTO INDUSTRIALE","ic","tot"],["Mark-up ("+fp(num(S.plants[pl].params.profit)+num(S.plants[pl].params.ga)+num(S.plants[pl].params.produttivita)+num(S.plants[pl].params.imposte))+" sul prezzo)","markup"],["PREZZO CALCOLATO COL BREAKDOWN","calc","tot"]].map(r=>`<tr class="${r[2]||""}"><td>${r[0]}</td>${O(`fm(${C}.${r[1]},4)+' €'`,r[2]||"")}</tr>`).join("")}
- <tr><td>Prezzo di pareggio dopo G&A (IC ÷ (1 − G&A))</td>${O(`fm(${C}.beGA,4)+' €'`)}</tr><tr><td>Incidenza materiali sul prezzo calcolato</td>${O(`fp(${C}.matShare)`)}</tr></table></div>
- <div class="card"><h2>4 · Sensibilità al prezzo di vendita · ${PN[pl]}</h2><table style="max-width:760px"><tr><th>Variazione</th><th class="n">Prezzo €</th><th class="n">Margine €</th><th class="n">Margine %</th><th class="n">Dopo G&A %</th></tr>
+  h+=`<tr class="${o.est?"est":""}"><td style="min-width:220px">${inT(q+"desc",o.desc)}</td><td style="min-width:230px"><select onchange="setPath('${q}machineId',this.value);render()"><option value="MOD" ${o.machineId==="MOD"?"selected":""}>Manual DL</option>${S.plants[pl].machines.map(m=>`<option value="${m.id}" ${m.id===o.machineId?"selected":""}>${m.name}</option>`).join("")}</select></td><td>${inN(q+"cav",o.cav)}</td><td>${inN(q+"cycle",o.cycle)}</td><td>${inP(q+"eff",o.eff)}</td>${O(`fm(${C}.opRows[${i}].L,2)`)}${O(`fm(${C}.opRows[${i}].rate,2)`)}${O(`fm(${C}.opRows[${i}].N,4)`,"tot")}${O(`fp(${C}.opRows[${i}].N/${C}.conv)`)}<td><button class="btn del" onclick="S.products[${ix}].v.${pl}.ops.splice(${i},1);save();render()">✕</button></td></tr>`});
+ h+=`<tr class="tot"><td colspan="7">Total conversion</td>${O(`fm(${C}.conv,4)`,"tot")}<td></td><td></td></tr></table>
+ <div class="row"><button class="btn sec" onclick="addOp(${ix},'${pl}')">+ Operation</button><button class="btn sec" onclick="copyOps(${ix},'${other}','${pl}')">Copy operations from ${PN[other]}</button></div></div>
+ <div class="card"><h2>3 · From cost to price · ${PN[pl]}</h2><table style="max-width:640px">
+ ${[["Raw materials / components","mat"],["Conversion","conv"],["Subtotal","sub","tot"],["Scrap "+fp(S.plants[pl].params.scrap)+" on subtotal","scrap"],["JIT/JIS logistics","log"],["INDUSTRIAL COST","ic","tot"],["Mark-up ("+fp(num(S.plants[pl].params.profit)+num(S.plants[pl].params.ga)+num(S.plants[pl].params.produttivita)+num(S.plants[pl].params.imposte))+" of price)","markup"],["PRICE CALCULATED FROM BREAKDOWN","calc","tot"]].map(r=>`<tr class="${r[2]||""}"><td>${r[0]}</td>${O(`fm(${C}.${r[1]},4)+' €'`,r[2]||"")}</tr>`).join("")}
+ <tr><td>Break-even price after G&A (IC ÷ (1 − G&A))</td>${O(`fm(${C}.beGA,4)+' €'`)}</tr><tr><td>Material share of calculated price</td>${O(`fp(${C}.matShare)`)}</tr></table></div>
+ <div class="card"><h2>4 · Selling price sensitivity · ${PN[pl]}</h2><table style="max-width:760px"><tr><th>Change</th><th class="n">Price €</th><th class="n">Margin €</th><th class="n">Margin %</th><th class="n">After G&A %</th></tr>
  ${[-.1,-.05,0,.05,.1].map(d=>{const pr=`(S.products[${ix}].v.${pl}.price*${1+d})`;return `<tr><td>${d>0?"+":""}${d*100} %</td>${O(`${C}.hasPrice?fm(${pr},4):'—'`)}${O(`${C}.hasPrice?fm(${pr}-${C}.ic,4):'—'`)}${O(`${C}.hasPrice?fp((${pr}-${C}.ic)/${pr}):'—'`)}${O(`${C}.hasPrice?fp((${pr}*(1-S.plants.${pl}.params.ga)-${C}.ic)/${pr}):'—'`)}</tr>`}).join("")}</table></div>`;return h}
 
-/* ======================= VERIFICA CON EXCEL (dataset nello stato condiviso) ======================= */
+/* ======================= EXCEL RECONCILIATION (dataset in shared state) ======================= */
 const esc=t=>String(t??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 function runCheck(){const C=S.check;if(!C||!C.state)return null;const A=C.state,pl=Object.keys(A.plants)[0],p=A.products[C.product||0],c=pcalc(p,pl,A);
  let delta=0;for(const i of (C.excelUsesPerMinute||[])){const o=p.v[pl].ops[i],m=A.plants[pl].machines.find(x=>x.id===o.machineId);const r=mrate(m,pl,A);delta+=c.opRows[i].L*(r.X-r.Y)/3600}
@@ -283,24 +283,24 @@ function runCheck(){const C=S.check;if(!C||!C.state)return null;const A=C.state,
  out.delta=delta;return out}
 function pageGui(){const R=runCheck(),G=S.guide||{excel:[],points:[]};
  let h="";
- if(R)h+=`<div class="card"><h2>Verifica di riconciliazione con il file Excel originale</h2><p class="sub">Il motore viene rieseguito su un foglio del file Excel cliente e confrontato con i valori calcolati da Excel. Non tocca i tuoi dati.</p>
- <table style="max-width:860px"><tr><th>Grandezza</th><th class="n">Excel</th><th class="n">Consolle</th><th>Esito</th></tr>${R.map(r=>`<tr><td>${esc(r.l)}</td><td class="n">${fm(r.x,6)}</td><td class="n">${fm(r.v,6)}</td><td class="${r.ok?"pass":"fail"}">${r.ok?"OK":"DIFFERENZA"}</td></tr>`).join("")}</table>
+ if(R)h+=`<div class="card"><h2>Reconciliation with the original Excel file</h2><p class="sub">The engine is re-run on a sheet of the customer Excel file and compared with the values calculated by Excel. It does not touch your data.</p>
+ <table style="max-width:860px"><tr><th>Quantity</th><th class="n">Excel</th><th class="n">Console</th><th>Result</th></tr>${R.map(r=>`<tr><td>${esc(r.l)}</td><td class="n">${fm(r.x,6)}</td><td class="n">${fm(r.v,6)}</td><td class="${r.ok?"pass":"fail"}">${r.ok?"OK":"DIFFERENCE"}</td></tr>`).join("")}</table>
  ${(G.excel||[]).map(t=>`<div class="warn">${esc(t)}</div>`).join("")}</div>`;
- else h+=`<div class="info">Verifica con Excel non disponibile: nessun dataset di controllo nei dati condivisi (importa il file dati iniziali).</div>`;
- h+=`<div class="card"><h2>Logica del file cliente (Stellantis / Adler)</h2><ol><li><b>Machine rate</b>: €/h = ammortamento + manutenzione + energia + MOD + indiretti.</li><li><b>Breakdown prodotto</b>: materiali + trasformazione (tempo ciclo ÷ efficienza ÷ cavità × rate ÷ 3600) + scarto + logistica = <b>costo industriale</b>.</li><li><b>Prezzo</b> = costo industriale ÷ (1 − utile − G&A − produttività − imposte): il mark-up è calcolato sul prezzo.</li><li><b>Margine</b> (aggiunto qui): prezzo del commerciale − costo industriale, e anche dopo G&A.</li></ol></div>
- <div class="card"><h2>Punti critici prima di usare i numeri</h2>${(G.points||[]).length?`<ul>${G.points.map(t=>`<li>${esc(t)}</li>`).join("")}</ul>`:'<p class="sub">Nessuna nota inserita.</p>'}</div>
- <div class="card"><h2>Ultime modifiche (storico condiviso)</h2><div id="hist" class="sub">${API?"Caricamento…":"Disponibile solo con il server collegato."}</div></div>`;
+ else h+=`<div class="info">Excel check not available: no control dataset in the shared data (import the initial data file).</div>`;
+ h+=`<div class="card"><h2>Logic of the customer file (Stellantis / Adler)</h2><ol><li><b>Machine rate</b>: €/h = depreciation + maintenance + energy + DL + indirect.</li><li><b>Product breakdown</b>: materials + conversion (cycle time ÷ efficiency ÷ cavities × rate ÷ 3600) + scrap + logistics = <b>industrial cost</b>.</li><li><b>Price</b> = industrial cost ÷ (1 − profit − G&A − productivity − taxes): the mark-up is calculated on the price.</li><li><b>Margin</b> (added here): Sales selling price − industrial cost, and also after G&A.</li></ol></div>
+ <div class="card"><h2>Key caveats before using the numbers</h2>${(G.points||[]).length?`<ul>${G.points.map(t=>`<li>${esc(t)}</li>`).join("")}</ul>`:'<p class="sub">No notes entered.</p>'}</div>
+ <div class="card"><h2>Latest changes (shared history)</h2><div id="hist" class="sub">${API?"Loading…":"Available only with the server connected."}</div></div>`;
  if(API)setTimeout(loadHistory,50);return h}
 async function loadHistory(){try{const r=await call("apiHistory",60);const el=document.getElementById("hist");if(!el)return;
- el.innerHTML=`<table><tr><th>Data / ora</th><th>Utente</th><th>Elemento</th><th class="n">Versione</th><th>Azione</th></tr>${r.map(x=>`<tr><td>${esc(x.ts)}</td><td>${esc(x.user)}</td><td>${esc(x.key)}</td><td class="n">${esc(x.v)}</td><td>${esc(x.action)}</td></tr>`).join("")}</table>`}catch(e){}}
+ el.innerHTML=`<table><tr><th>Date / time</th><th>User</th><th>Item</th><th class="n">Version</th><th>Action</th></tr>${r.map(x=>`<tr><td>${esc(x.ts)}</td><td>${esc(x.user)}</td><td>${esc(x.key)}</td><td class="n">${esc(x.v)}</td><td>${esc(x.action)}</td></tr>`).join("")}</table>`}catch(e){}}
 
 /* ======================= ACCESSO, DATI CONDIVISI, SALVATAGGIO ======================= */
 const API=window.ADLER_API||"";
 let TOKEN="",ME=null,REM={},conflicts={},timer=null,busy=false,loaded=false,pendingRender=false,pollT=null;
 try{TOKEN=sessionStorage.getItem("adl_t")||"";ME=JSON.parse(sessionStorage.getItem("adl_u")||"null")}catch(e){}
 const readonly=()=>ME&&ME.ruolo==="viewer";
-async function call(fn,...args){let r;try{r=await fetch(API,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify({fn,args,token:TOKEN})})}catch(e){throw new Error("Server non raggiungibile")}
- const j=await r.json();if(j.status===401&&fn!=="apiLogin"){logout(true);throw new Error("Sessione scaduta")}if(j.error)throw new Error(j.error);return j.data}
+async function call(fn,...args){let r;try{r=await fetch(API,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify({fn,args,token:TOKEN})})}catch(e){throw new Error("Server unreachable")}
+ const j=await r.json();if(j.status===401&&fn!=="apiLogin"){logout(true);throw new Error("Session expired")}if(j.error)throw new Error(j.error);return j.data}
 function setStatus(t,bad){const e=document.getElementById("stat");if(e){e.textContent=t;e.className="badge "+(bad?"b-es":"b-bc")}}
 function docsOf(st){const d={meta:{name:st.name||"",ids:st.products.map(p=>p.id)},notes:st.notes||{},guide:st.guide||{},materials:st.materials};if(st.check)d.check=st.check;for(const k of PL)d["plant:"+k]=st.plants[k];for(const p of st.products)d["prod:"+p.id]=p;return d}
 function applyDoc(k,val){if(k==="meta"){S.name=val.name;S._ids=val.ids;S.products.sort((a,b)=>S._ids.indexOf(a.id)-S._ids.indexOf(b.id))}
@@ -309,41 +309,41 @@ function applyDoc(k,val){if(k==="meta"){S.name=val.name;S._ids=val.ids;S.product
  else if(k.startsWith("prod:")){const i=S.products.findIndex(p=>p.id===val.id);if(i>=0)S.products[i]=val;else S.products.push(val);if(S._ids)S.products.sort((a,b)=>S._ids.indexOf(a.id)-S._ids.indexOf(b.id))}}
 function dropDoc(k){if(k.startsWith("prod:"))S.products=S.products.filter(p=>"prod:"+p.id!==k)}
 function save(){if(!API){try{localStorage.setItem("adlerLocal",JSON.stringify(S))}catch(e){}return}
- if(readonly()||!loaded)return;setStatus("modifiche non salvate…",true);clearTimeout(timer);timer=setTimeout(flush,1500)}
+ if(readonly()||!loaded)return;setStatus("unsaved changes…",true);clearTimeout(timer);timer=setTimeout(flush,1500)}
 async function flush(){if(busy){timer=setTimeout(flush,800);return}busy=true;
  try{const d=docsOf(S);
   for(const [k,val] of Object.entries(d)){const js=JSON.stringify(val);if(REM[k]&&REM[k].json===js)continue;if(conflicts[k])continue;
    const r=await call("apiSaveDoc",k,js,REM[k]?REM[k].v:0);
    if(r.conflict){conflicts[k]=r.current;showConflicts()}else REM[k]={v:r.v,json:js}}
   for(const k of Object.keys(REM))if(!(k in d)&&!conflicts[k]){await call("apiDeleteDoc",k,REM[k].v);delete REM[k]}
-  if(!Object.keys(conflicts).length)setStatus("salvato "+new Date().toLocaleTimeString("it-IT"))}
- catch(e){setStatus("ERRORE salvataggio: "+e.message,true)}busy=false}
+  if(!Object.keys(conflicts).length)setStatus("saved "+new Date().toLocaleTimeString("en-GB"))}
+ catch(e){setStatus("SAVE ERROR: "+e.message,true)}busy=false}
 function showConflicts(){const ks=Object.keys(conflicts),el=document.getElementById("confl");if(!ks.length){el.classList.add("hid");return}
- el.classList.remove("hid");el.innerHTML=ks.map(k=>`<div class="warn"><b>Conflitto su «${esc(k)}»</b>: ${esc(conflicts[k].by)} ha salvato una versione più recente (${esc(conflicts[k].ts)}). <button class="btn sec" onclick="resolve('${esc(k)}','theirs')">Usa la sua versione (perdo le mie modifiche)</button> <button class="btn" onclick="resolve('${esc(k)}','mine')">Sovrascrivi con le mie</button></div>`).join("");setStatus("conflitto da risolvere",true)}
+ el.classList.remove("hid");el.innerHTML=ks.map(k=>`<div class="warn"><b>Conflict on “${esc(k)}”</b>: ${esc(conflicts[k].by)} saved a newer version (${esc(conflicts[k].ts)}). <button class="btn sec" onclick="resolve('${esc(k)}','theirs')">Use their version (I lose my changes)</button> <button class="btn" onclick="resolve('${esc(k)}','mine')">Overwrite with mine</button></div>`).join("");setStatus("conflict to resolve",true)}
 function resolve(k,how){const c=conflicts[k];delete conflicts[k];REM[k]={v:c.v,json:c.json};if(how==="theirs")applyDoc(k,JSON.parse(c.json));showConflicts();softRender();if(how==="mine")flush()}
 function softRender(){if(/INPUT|SELECT|TEXTAREA/.test(document.activeElement.tagName)){pendingRender=true;return}pendingRender=false;const y=window.scrollY;render(true);window.scrollTo(0,y)}
 document.addEventListener("focusout",()=>{if(pendingRender)setTimeout(softRender,200)});
 async function poll(){if(!TOKEN||!loaded||busy)return;
  try{const known={};for(const k in REM)known[k]=REM[k].v;const r=await call("apiPoll",known);let ch=false;
   for(const [k,d] of Object.entries(r.changed)){const mine=JSON.stringify(docsOf(S)[k]);const dirty=REM[k]&&mine!==REM[k].json;
-   if(dirty){conflicts[k]=d;showConflicts()}else{REM[k]={v:d.v,json:d.json};applyDoc(k,JSON.parse(d.json));ch=true;setStatus("aggiornato da "+d.by+" · "+d.ts.slice(11,16))}}
+   if(dirty){conflicts[k]=d;showConflicts()}else{REM[k]={v:d.v,json:d.json};applyDoc(k,JSON.parse(d.json));ch=true;setStatus("updated by "+d.by+" · "+d.ts.slice(11,16))}}
   for(const k of Object.keys(REM))if(!r.keys.includes(k)){const dirty=docsOf(S)[k]!==undefined&&JSON.stringify(docsOf(S)[k])!==REM[k].json;if(!dirty){delete REM[k];dropDoc(k);ch=true}}
   if(ch)softRender()}catch(e){}}
 async function loadAll(){const r=await call("apiLoadAll");REM={};const keys=Object.keys(r.docs);
- if(!keys.length){S=build();loaded=true;setStatus(readonly()?"database vuoto":"database vuoto: importa i dati iniziali (⬆ Carica dati)",true);return}
+ if(!keys.length){S=build();loaded=true;setStatus(readonly()?"database empty":"database empty: import the initial data (⬆ Load data)",true);return}
  S=build();S.products=[];S.materials=[];for(const k of keys){REM[k]={v:r.docs[k].v,json:r.docs[k].json}}
  for(const k of ["notes","guide","check","materials","plant:TNG","plant:ZGZ"])if(REM[k])applyDoc(k,JSON.parse(REM[k].json));
  for(const k of keys)if(k.startsWith("prod:"))applyDoc(k,JSON.parse(REM[k].json));
- if(REM.meta)applyDoc("meta",JSON.parse(REM.meta.json));loaded=true;setStatus("dati caricati "+new Date().toLocaleTimeString("it-IT"))}
+ if(REM.meta)applyDoc("meta",JSON.parse(REM.meta.json));loaded=true;setStatus("data loaded "+new Date().toLocaleTimeString("en-GB"))}
 async function doLogin(){const u=document.getElementById("l_u").value.trim(),p=document.getElementById("l_p").value,e=document.getElementById("l_e");e.textContent="";
  try{const r=await call("apiLogin",u,p);TOKEN=r.token;ME={nome:r.nome,ruolo:r.ruolo};try{sessionStorage.setItem("adl_t",TOKEN);sessionStorage.setItem("adl_u",JSON.stringify(ME))}catch(x){}await start()}catch(x){e.textContent=x.message}}
-function logout(silent){TOKEN="";ME=null;loaded=false;clearInterval(pollT);try{sessionStorage.removeItem("adl_t");sessionStorage.removeItem("adl_u")}catch(e){}showLogin(silent?"Sessione scaduta: accedi di nuovo.":"")}
+function logout(silent){TOKEN="";ME=null;loaded=false;clearInterval(pollT);try{sessionStorage.removeItem("adl_t");sessionStorage.removeItem("adl_u")}catch(e){}showLogin(silent?"Session expired: please sign in again.":"")}
 function showLogin(msg){document.getElementById("app").classList.add("hid");const l=document.getElementById("login");l.classList.remove("hid");document.getElementById("l_e").textContent=msg||"";document.getElementById("l_p").value=""}
 async function start(){document.getElementById("login").classList.add("hid");document.getElementById("app").classList.remove("hid");
- document.getElementById("who").textContent=ME?ME.nome+" · "+ME.ruolo:"modalità locale";document.getElementById("exitb").classList.toggle("hid",!API);
- try{await loadAll()}catch(e){setStatus("ERRORE: "+e.message,true)}render();clearInterval(pollT);pollT=setInterval(poll,15000)}
+ document.getElementById("who").textContent=ME?ME.nome+" · "+ME.ruolo:"local mode";document.getElementById("exitb").classList.toggle("hid",!API);
+ try{await loadAll()}catch(e){setStatus("ERROR: "+e.message,true)}render();clearInterval(pollT);pollT=setInterval(poll,15000)}
 document.addEventListener("keydown",e=>{if(e.key==="Enter"&&document.activeElement.id==="l_p")doLogin()});
-if(!API){try{const x=JSON.parse(localStorage.getItem("adlerLocal")||"null");if(x&&x.plants)S=x}catch(e){}ME={nome:"Locale",ruolo:"admin"};loaded=true;start().then(()=>setStatus("modalità locale (nessun server collegato)",true))}
+if(!API){try{const x=JSON.parse(localStorage.getItem("adlerLocal")||"null");if(x&&x.plants)S=x}catch(e){}ME={nome:"Local",ruolo:"admin"};loaded=true;start().then(()=>setStatus("local mode (no server connected)",true))}
 else if(TOKEN&&ME)start();else showLogin();
 </script>
 </body>

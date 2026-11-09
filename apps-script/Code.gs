@@ -19,7 +19,7 @@ var MAX_DOC = 45000;              // limite caratteri per cella Google Sheets: 5
 /* ---------- utilità foglio ---------- */
 function ss_() {
   var id = PropertiesService.getScriptProperties().getProperty('SSID');
-  if (!id) throw new Error('Archivio non inizializzato: eseguire setup()');
+  if (!id) throw new Error('Archive not initialised: run setup()');
   return SpreadsheetApp.openById(id);
 }
 function sheet_(nome, intestazioni) {
@@ -53,9 +53,9 @@ function setup() {
  */
 function creaUtente(utente, password, nome, ruolo) {
   utente = String(utente).trim().toLowerCase();
-  if (!/^[a-z0-9._-]{2,30}$/.test(utente)) throw new Error('ID utente non valido');
-  if (String(password).length < 10) throw new Error('Password troppo corta (minimo 10 caratteri)');
-  if (['admin', 'editor', 'viewer'].indexOf(ruolo) < 0) throw new Error('Ruolo non valido');
+  if (!/^[a-z0-9._-]{2,30}$/.test(utente)) throw new Error('Invalid user ID');
+  if (String(password).length < 10) throw new Error('Password too short (minimum 10 characters)');
+  if (['admin', 'editor', 'viewer'].indexOf(ruolo) < 0) throw new Error('Invalid role');
   var s = shUtenti_(), v = s.getDataRange().getValues(), salt = Utilities.getUuid(), h = hash_(salt, password), riga = -1;
   for (var i = 1; i < v.length; i++) if (v[i][0] === utente) riga = i + 1;
   var rec = [utente, nome, ruolo, salt, h, true];
@@ -88,11 +88,11 @@ function uguali_(a, b) { // confronto a tempo costante
 function apiLogin(utente, password) {
   utente = String(utente || '').trim().toLowerCase();
   var cache = CacheService.getScriptCache(), kf = 'fail:' + utente, n = parseInt(cache.get(kf) || '0', 10);
-  if (n >= MAX_TENTATIVI) throw new Error('Troppi tentativi errati: riprova tra 15 minuti');
+  if (n >= MAX_TENTATIVI) throw new Error('Too many failed attempts: try again in 15 minutes');
   var v = shUtenti_().getDataRange().getValues(), u = null;
   for (var i = 1; i < v.length; i++) if (v[i][0] === utente && v[i][5] === true) u = v[i];
   var ok = u && uguali_(hash_(String(u[3]), String(password || '')), String(u[4]));
-  if (!ok) { cache.put(kf, String(n + 1), BLOCCO_SEC); Utilities.sleep(800); throw new Error('Utente o password non corretti'); }
+  if (!ok) { cache.put(kf, String(n + 1), BLOCCO_SEC); Utilities.sleep(800); throw new Error('Incorrect user ID or password'); }
   cache.remove(kf);
   var token = Utilities.getUuid() + Utilities.getUuid().replace(/-/g, '');
   cache.put('tok:' + token, JSON.stringify({ u: utente, nome: u[1], ruolo: u[2] }), TOKEN_TTL);
@@ -100,7 +100,7 @@ function apiLogin(utente, password) {
 }
 function sessione_(token) {
   var raw = token ? CacheService.getScriptCache().get('tok:' + token) : null;
-  if (!raw) { var e = new Error('Sessione scaduta'); e.status = 401; throw e; }
+  if (!raw) { var e = new Error('Session expired'); e.status = 401; throw e; }
   return JSON.parse(raw);
 }
 
@@ -126,10 +126,10 @@ function apiPoll(ses, known) {
   return { changed: changed, keys: keys };
 }
 function apiSaveDoc(ses, key, json, baseV) {
-  if (ses.ruolo === 'viewer') throw new Error('Account in sola lettura');
-  if (!chiaveValida_(key)) throw new Error('Chiave non valida');
+  if (ses.ruolo === 'viewer') throw new Error('Read-only account');
+  if (!chiaveValida_(key)) throw new Error('Invalid key');
   json = String(json);
-  if (json.length > MAX_DOC) throw new Error('Documento troppo grande (' + json.length + ' caratteri)');
+  if (json.length > MAX_DOC) throw new Error('Document too large (' + json.length + ' characters)');
   JSON.parse(json); // deve essere JSON valido
   var lock = LockService.getScriptLock(); lock.waitLock(20000);
   try {
@@ -143,8 +143,8 @@ function apiSaveDoc(ses, key, json, baseV) {
   } finally { lock.releaseLock(); }
 }
 function apiDeleteDoc(ses, key, baseV) {
-  if (ses.ruolo === 'viewer') throw new Error('Account in sola lettura');
-  if (!chiaveValida_(key)) throw new Error('Chiave non valida');
+  if (ses.ruolo === 'viewer') throw new Error('Read-only account');
+  if (!chiaveValida_(key)) throw new Error('Invalid key');
   var lock = LockService.getScriptLock(); lock.waitLock(20000);
   try {
     var cur = leggi_()[key];
@@ -171,7 +171,7 @@ function doPost(e) {
   try {
     var r = JSON.parse(e.postData.contents), fn = r.fn, a = r.args || [];
     if (fn === 'apiLogin') return risposta_({ data: apiLogin(a[0], a[1]) });
-    if (!ROTTE[fn]) throw new Error('Funzione sconosciuta');
+    if (!ROTTE[fn]) throw new Error('Unknown function');
     var ses = sessione_(r.token);
     return risposta_({ data: ROTTE[fn].apply(null, [ses].concat(a)) });
   } catch (err) {
