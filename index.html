@@ -98,6 +98,7 @@ li{margin:4px 0}
 <script src="config.js"></script>
 <script src="vendor/jspdf.umd.min.js"></script>
 <script src="vendor/jspdf.plugin.autotable.min.js"></script>
+<script src="vendor/xlsx.mini.min.js"></script>
 <script>
 /* ======================= EMPTY STATE (no company data in the code) ======================= */
 const PL=["TNG","ZGZ"],PN={TNG:"Tangier",ZGZ:"Zaragoza"};
@@ -339,13 +340,76 @@ function pageGui(){const R=runCheck(),G=S.guide||{excel:[],points:[]};
 async function loadHistory(){try{const r=await call("apiHistory",60);const el=document.getElementById("hist");if(!el)return;
  el.innerHTML=`<table><tr><th>Date / time</th><th>User</th><th>Item</th><th class="n">Version</th><th>Action</th></tr>${r.map(x=>`<tr><td>${esc(x.ts)}</td><td>${esc(x.user)}</td><td>${esc(x.key)}</td><td class="n">${esc(x.v)}</td><td>${esc(x.action)}</td></tr>`).join("")}</table>`}catch(e){}}
 
+/* ======================= IMPORT BURDEN ITEMS FROM THE BUSINESS CASE (Excel, read in the browser) ======================= */
+function bcFixed(n){n=n.toLowerCase();
+ if(n.includes("building rent"))return["GA","Facilities"];
+ if(/canteen|transport for people|bonus for|water points|cafe machine|vending/.test(n))return["BURDEN","Welfare"];
+ if(/insurance|insuusrance|inssurance/.test(n))return["GA","Insurance"];
+ if(/security|24h/.test(n))return["BURDEN","Security"];
+ if(/forklift|mini truck|intbound|inbound/.test(n))return["BURDEN","Logistics"];
+ if(/company cars|printers/.test(n))return["GA","Vehicles / equipment"];
+ if(/cleaning|ventillations/.test(n))return["BURDEN","Cleaning"];
+ if(/taxes/.test(n))return["GA","Taxes"];
+ if(/quality external lab|calibration/.test(n))return["BURDEN","Quality"];
+ if(/maintenance/.test(n))return["BURDEN","Maintenance services"];
+ if(/fire inspection|regulatory inspection|electrical|fire protection|médecine|servicio de prevención/.test(n))return["BURDEN","HSE / occupational health"];
+ return["GA","Admin / IT / HR / consulting"]}
+function bcVar(n){n=n.toLowerCase();
+ if(/waste/.test(n))return["BURDEN","Waste"];
+ if(/maintenance service contract/.test(n))return["BURDEN","Maintenance services"];
+ if(/spare parts|production supplies/.test(n))return["MAINT","Maintenance material"];
+ if(/claims/.test(n))return["GA","Customer claims"];
+ if(/ppe/.test(n))return["BURDEN","Welfare"];
+ if(/shipement|shipment/.test(n))return["BURDEN","Logistics"];
+ return["GA","Admin / other"]}
+function bcPlant(wb,pre,year,pl){
+ const rows=n=>{const ws=wb.Sheets[pre+n];if(!ws||!ws["!ref"])return null;const rg=XLSX.utils.decode_range(ws["!ref"]);rg.s.c=0;rg.s.r=0;return XLSX.utils.sheet_to_json(ws,{header:1,defval:null,range:rg})};
+ const fx=rows("FIXED_COSTS"),vr=rows("VAR_COSTS"),wf=rows("WORKFORCE");if(!fx||!vr||!wf)return null;
+ const ys=String(year),items=[];let n=0;const add=(g,name,amt,c,note)=>{if(!(amt>0))return;n++;items.push({id:pl.toLowerCase()+"bc"+n,group:g,name,annual:Math.round(amt),cls:c,note})};
+ // personnel
+ const wh=wf.find(r=>r&&r[1]==="Cost Item"),wy=wh?wh.findIndex(c=>String(c)===ys):-1;if(wy<0)return null;
+ const pv=k=>{const r=wf.find(r=>r&&typeof r[1]==="string"&&r[1].startsWith(k));return r&&typeof r[wy]==="number"?r[wy]:0};
+ const dl=pv("Direct Personnel cost");
+ add("Personnel","Direct personnel (operators)",dl,"DL","Business case WORKFORCE "+ys);
+ add("Personnel","Indirect personnel (logistics, maintenance, support)",pv("Indirect Personnel cost"),"BURDEN","Business case WORKFORCE "+ys);
+ const adm=pv("Admin Personnel cost"),sup=pv("Shift supervisors cost");
+ add("Personnel","Admin personnel",adm,"GA","Business case WORKFORCE "+ys);add("Personnel","Shift supervisors",sup,"BURDEN","Business case WORKFORCE "+ys);
+ add("Personnel","Managers",pv("Manager Personnel cost"),"GA","Business case WORKFORCE "+ys);
+ // fixed costs
+ const fh=fx.findIndex(r=>r&&r[1]==="Description"&&r.some(c=>String(c)===ys));if(fh<0)return null;const fy=fx[fh].findIndex(c=>String(c)===ys);
+ for(let i=fh+1;i<fx.length;i++){const r=fx[i];if(!r||!r[1])continue;const d=String(r[1]).trim();if(d.toUpperCase().startsWith("TOTAL"))break;if(d.startsWith("▼"))break;
+  const v=r[fy];if(typeof v!=="number")continue;const[c,g]=bcFixed(d);
+  add(g,d.replace("In,suusrance","Insurance").replace("Inssurance","Insurance").replace("Intbound Outbound","Inbound / outbound logistics"),v,c,"Business case FIXED_COSTS "+ys+" ("+String(r[10]||"").trim()+", "+(r[11]||"")+")")}
+ // variable costs
+ const vh=vr.findIndex(r=>r&&r[1]==="Description"&&String(r[2]).startsWith("Cost / Month"));
+ if(vh>=0)for(let i=vh+1;i<vr.length;i++){const r=vr[i];if(!r||!r[1])continue;const d=String(r[1]).trim();if(/^(APPLIED|Total)/i.test(d)||d.startsWith("▼"))break;
+  const v=r[4];if(typeof v!=="number")continue;const[c,g]=bcVar(d);add(g,d,v,c,"Business case VAR_COSTS ("+String(r[6]||"").trim()+", "+(r[7]||"")+")")}
+ // energy (information only)
+ const er=vr.find(r=>r&&typeof r[1]==="string"&&r[1].startsWith("Annual Electricity Cost (€/year)")),pr=vr.find(r=>r&&typeof r[5]==="string"&&/€\/year/.test(r[5])&&/power/i.test(r[5])&&typeof r[6]==="number");
+ if(er)add("Energy","Electricity consumption (BC annual)",er[2],"ENERGY","Information only: the console models energy from kW × €/kWh");
+ if(pr)add("Energy","Electricity fixed power charge",pr[6],"ENERGY","Information only: not included in product cost");
+ return{items,dl}}
+async function doImportBC(el){const f=el.files[0];if(!f)return;if(readonly()){alert("Read-only account");return}
+ const year=document.getElementById("bcYear").value;let wb;
+ try{wb=XLSX.read(await f.arrayBuffer(),{type:"array"})}catch(e){alert("Cannot read this Excel file");return}
+ const out=[];const plan=[["TNG","","Tangier (sheets without prefix)"],["ZGZ","ES_","Zaragoza (sheets ES_…)"]];
+ const got={};for(const[pl,pre]of plan)got[pl]=bcPlant(wb,pre,year,pl);
+ if(!got.TNG&&!got.ZGZ){alert("No FIXED_COSTS / VAR_COSTS / WORKFORCE sheets found for year "+year+". Use the Business Case comparison file.");el.value="";return}
+ const have=PL.some(k=>S.plants[k].items&&S.plants[k].items.length);
+ if(have&&!confirm("This REPLACES the burden items of the plants found in the file (your manual edits on those items are lost). Continue?")){el.value="";return}
+ for(const[pl]of plan){const g=got[pl];if(!g){out.push(PN[pl]+": sheets not found");continue}
+  const p=S.plants[pl];p.items=g.items;p.dlBase=g.dl;p.params.burdenMode="split";p.params.maintMode="split";
+  const B=burdenCalc(pl);out.push(PN[pl]+": "+g.items.length+" items, burden "+fm(B.t.BURDEN,0)+" €, DL base "+fm(g.dl,0)+" €, burden rate "+fp(B.burdenRate))}
+ el.value="";save();alert("Imported from the Business Case ("+year+"):\n"+out.join("\n"));render()}
 const COMP=[["G","Depreciation","#0f766e"],["I","Maintenance","#14b8a6"],["M","Energy","#5eead4"],["R","Direct labour","#0369a1"],["T","Burden","#7c3aed"]];
 function miniBar(r){const t=r.rate||1;return `<div class="stack" style="height:14px">${COMP.map(c=>`<div style="width:${Math.max(0,r[c[0]]/t*100)}%;background:${c[2]}" title="${c[1]} ${fm(r[c[0]],2)} €/h"></div>`).join("")}</div>`}
 function pageBur(){const pl=bpl,p=S.plants[pl],P=p.params,B=burdenCalc(pl),pre=`plants.${pl}.`;
  const tabsH=`<div class="tabs">${PL.map(k=>`<button class="${bpl===k?"on ":""}${k==="TNG"?"T":"Z"}" onclick="bpl='${k}';render()">${PN[k]}</button>`).join("")}</div>`;
  const K=`burdenCalc('${pl}')`,EF=`effP('${pl}')`;
  const kp=(l,e,sm)=>`<div><span>${l}</span><b data-c="${e.replace(/"/g,"&quot;")}"></b><small>${sm}</small></div>`;
- let h=tabsH+`<div class="info">The <b>burden</b> is the sum of plant overhead costs that are not direct labour, depreciation, maintenance or energy (indirect staff, welfare, cleaning, waste, security, logistics…). It is expressed as a % of the <b>direct labour cost</b> and added to every direct-labour hour: <b>burden €/h = DL €/h × burden rate</b>. G&A is charged on the selling price. Maintenance spare parts are expressed as a % of machine depreciation. Same logic as the “ANNEX 4 MAP” of the customer file.</div>
+ let h=tabsH+`<div class="card"><h2>Feed from the Business Case</h2><p class="sub">Select the Business Case Excel (the “Spain vs Morocco comparison” file). The file is read in your browser: personnel (WORKFORCE), fixed costs (FIXED_COSTS) and variable costs (VAR_COSTS) are loaded as burden items for <b>both plants</b> (Tangier = sheets without prefix, Zaragoza = sheets with prefix “ES_”), classified Burden / G&A / Maintenance / Energy like the customer file. You can edit, reclassify, add or delete every item afterwards.</p>
+ <div class="row"><label>Year</label><select id="bcYear" style="width:90px">${[2028,2029,2030,2031].map(y=>`<option ${y===2030?"selected":""}>${y}</option>`).join("")}</select><input type="file" accept=".xlsx,.xlsm" onchange="doImportBC(this)" style="width:auto"></div></div>
+ <div class="info">The <b>burden</b> is the sum of plant overhead costs that are not direct labour, depreciation, maintenance or energy (indirect staff, welfare, cleaning, waste, security, logistics…). It is expressed as a % of the <b>direct labour cost</b> and added to every direct-labour hour: <b>burden €/h = DL €/h × burden rate</b>. G&A is charged on the selling price. Maintenance spare parts are expressed as a % of machine depreciation. Same logic as the “ANNEX 4 MAP” of the customer file.</div>
  <div class="kpi">${kp("Burden total / year",`fm(${K}.t.BURDEN,0)+' €'`,"items classed Burden")}${kp("Direct labour base / year",`fm(${K}.dl,0)+' €'`,"annual direct labour cost")}${kp("Burden rate (computed)",`fp(${K}.burdenRate)`,"burden ÷ direct labour")}${kp("Burden rate IN USE",`fp(${EF}.burden)`,P.burdenMode==="split"?"from the split":"manual value (Basic inputs)")}</div>
  <div class="kpi">${kp("G&A total / year",`fm(${K}.t.GA,0)+' €'`,"items classed G&A")}${kp("G&A implied on revenue",`fp(${K}.gaPct)`,`revenue of priced products: ${fm(B.rev/1e6,2)} M€ · used rate: ${fp(num(P.ga))}`)}${kp("Maintenance total / year",`fm(${K}.t.MAINT,0)+' €'`,"spare parts and consumables")}${kp("Machine depreciation / year",`fm(${K}.dep,0)+' €'`,"Σ qty × price × (1 − residual) × hours ÷ life")}${kp("Maintenance % IN USE",`fp(${EF}.maint)`,`computed: ${fp(B.maintRate)}`)}</div>
  <div class="card"><h2>Settings · ${PN[pl]}</h2><div class="grid">
