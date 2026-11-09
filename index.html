@@ -138,7 +138,7 @@ function effP(pl,st=S){const p=st.plants[pl],P=p.params,B=burdenCalc(pl,st);let 
  if(P.burdenMode==="split"&&isFinite(B.burdenRate))burden=B.burdenRate;if(P.maintMode==="split"&&isFinite(B.maintRate))maint=B.maintRate;return{burden,maint,B}}
 function mrate(m,pl,st=S){const P=st.plants[pl].params,F=st.plants[pl].flags,D=derived(P),E=effP(pl,st),gu=guOf(m,pl,st),d=gu>0?gu:1,r={gu};
  const G0=num(m.price)*(1-num(m.resid))/(num(m.life)||1);
- r.G=F.dep?G0/d:G0;r.I=E.maint*(F.maint?G0/d:G0);
+ r.G=F.dep?G0/d:G0;r.I=E.maint*((F.maint&&!F.dep)?G0/d:r.G);
  const M0=num(m.kw)*num(P.energyUse)*num(P.energyPrice);r.M=F.energy?M0/d:M0;
  r.R=num(m.workers)*D.mod*(F.cassa?1+num(P.cassa):1);r.T=r.R*E.burden/(F.indirect?d:1);
  r.V=r.G+r.I+r.M+r.R+r.T;r.X=r.V-(P.depExcl?r.G:0);r.Y=r.X/60;return r}
