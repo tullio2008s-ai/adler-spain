@@ -74,6 +74,7 @@ li{margin:4px 0}
 </head>
 <body>
 <div id="login" class="hid"><img src="logo.png" alt="Adler Pelzer Group" class="lg"><h2>Product Cost Console</h2><div class="sub">Restricted access</div><label>User ID</label><input id="l_u" type="text" autocomplete="username"><label>Password</label><input id="l_p" type="password" autocomplete="current-password"><button class="btn" onclick="doLogin()">Sign in</button><div id="l_e"></div></div>
+<div id="pastebox" class="hid" style="position:fixed;inset:0;background:#0f1b3399;z-index:50;display:flex;align-items:center;justify-content:center"><div style="background:#fff;border-radius:14px;padding:20px;width:min(760px,92vw)"><h2>Paste data (JSON)</h2><p class="sub">Paste the full JSON text and click Import. In a shared database it replaces the current data for everyone.</p><textarea id="pastetxt" style="width:100%;height:280px;font:12px monospace"></textarea><div class="row" style="justify-content:flex-end"><button class="btn sec" onclick="closePaste()">Cancel</button><button class="btn" onclick="doPaste()">Import</button></div></div></div>
 <div id="app" class="hid">
 <aside>
   <div class="logo"><div class="lgbox"><img src="logo.png" alt="Adler Pelzer Group"></div><span>Product cost · Tangier / Zaragoza</span></div>
@@ -85,6 +86,7 @@ li{margin:4px 0}
     <button onclick="resetData()">⚠ Reset data (admin only)</button>
     <button onclick="saveJSON()">⬇ Save backup (.json)</button>
     <button onclick="document.getElementById('fi').click()">⬆ Load data</button>
+    <button onclick="openPaste()">⌨ Paste data (JSON text)</button>
     <input id="fi" type="file" accept=".json" style="display:none" onchange="loadJSON(this)">
   </div>
   <div class="mini" style="margin-top:10px">Shared data on the company server.</div>
@@ -169,6 +171,9 @@ function go(k){page=k;render()}
 function openProd(id,t){selProd=id;if(t)tab=t;page="pd";render()}
 function resetData(){if(ME&&ME.ruolo!=="admin"){alert("Only the administrator can reset the data");return}if(!confirm("WARNING: this erases the SHARED data of all users. Continue?"))return;if(!confirm("Confirm again: this cannot be undone (only the history log remains)."))return;S=build();selProd=null;save();go("dash")}
 function saveJSON(){const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([JSON.stringify(S,null,1)],{type:"application/json"}));a.download="adler_dati_backup.json";a.click()}
+function openPaste(){const b=document.getElementById("pastebox");b.classList.remove("hid");document.getElementById("pastetxt").value="";document.getElementById("pastetxt").focus()}
+function closePaste(){document.getElementById("pastebox").classList.add("hid")}
+function doPaste(){if(readonly()){alert("Read-only account");return}try{const x=JSON.parse(document.getElementById("pastetxt").value);if(!x.plants||!x.products)throw 0;if(API&&Object.keys(REM).length&&!confirm("The database already contains data: the import REPLACES it for everyone. Continue?"))return;S=Object.assign(build(),x);selProd=null;loaded=true;closePaste();save();go("dash")}catch(e){alert("Invalid JSON text")}}
 function loadJSON(el){const f=el.files[0];if(!f)return;if(readonly()){alert("Read-only account");return}const r=new FileReader();r.onload=()=>{try{const x=JSON.parse(r.result);if(!x.plants||!x.products)throw 0;if(API&&Object.keys(REM).length&&!confirm("The database already contains data: the import REPLACES it for everyone. Continue?"))return;S=Object.assign(build(),x);selProd=null;loaded=true;save();go("dash")}catch(e){alert("Invalid file")}};r.readAsText(f);el.value=""}
 
 /* ======================= PAGINE ======================= */
