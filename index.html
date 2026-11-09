@@ -131,7 +131,12 @@ function mrate(m,pl,st=S){const P=st.plants[pl].params,F=st.plants[pl].flags,D=d
 function pcalc(p,pl,st=S){const P=st.plants[pl].params,D=derived(P),v=p.v[pl],c={bomRows:[],opRows:[],mat:0,conv:0};
  for(const b of p.bom){const m=st.materials.find(x=>x.id===b.matId);const r=m?num(m.cost[pl])*num(b.qty):0;c.bomRows.push(r);c.mat+=r}
  for(const o of v.ops){const m=o.machineId==="MOD"?null:st.plants[pl].machines.find(x=>x.id===o.machineId);
-  const L=num(o.cycle)/(num(o.eff)||1)/(num(o.cav)||1),rate=m?mrate(m,pl,st).X:D.mod,N=L*rate/3600;c.opRows.push({L,rate,N});c.conv+=N}
+  const L=num(o.cycle)/(num(o.eff)||1)/(num(o.cav)||1);let rate;
+  if(o.crew!==undefined&&o.crew!==null&&o.crew!==""){ // crew defined (CIS): machine part without its generic labour + crew-based labour
+   const F=st.plants[pl].flags,mr=m?mrate(m,pl,st):null,lab=num(o.crew)*D.mod*(F.cassa?1+num(P.cassa):1);
+   rate=(mr?mr.X-mr.R-mr.T:0)+lab+(m?lab*num(P.burden)/(F.indirect?(mr.gu>0?mr.gu:1):1):0)}
+  else rate=m?mrate(m,pl,st).X:D.mod;
+  const N=L*rate/3600;c.opRows.push({L,rate,N});c.conv+=N}
  c.sub=c.mat+c.conv;c.scrap=c.sub*num(P.scrap);c.log=num(v.logistic);c.ic=c.sub+c.scrap+c.log;
  const mk=num(P.profit)+num(P.ga)+num(P.produttivita)+num(P.imposte);c.mk=mk;c.markup=c.ic/(1-mk)-c.ic;c.calc=c.ic+c.markup;
  const sp=num(v.price);c.hasPrice=sp>0;c.margin=sp>0?sp-c.ic:NaN;c.marginPct=sp>0?c.margin/sp:NaN;
@@ -143,6 +148,7 @@ function setPath(path,v){const k=path.split(".");let o=S;for(let i=0;i<k.length-
 const setN=(p,v)=>setPath(p,num(v)),setP=(p,v)=>setPath(p,num(v)/100),setT=(p,v)=>setPath(p,v);
 const rnd=v=>Math.round(v*1e9)/1e9;
 const inN=(p,v,st="any")=>`<input type="number" step="${st}" value="${v}" oninput="setN('${p}',this.value)">`;
+const inCrew=(p,v)=>`<input type="number" step="any" placeholder="–" value="${v===undefined||v===null?"":v}" oninput="setPath('${p}',this.value===''?null:num(this.value))">`;
 const inP=(p,v)=>`<input type="number" step="any" value="${rnd(v*100)}" oninput="setP('${p}',this.value)">`;
 const inT=(p,v)=>`<input type="text" value="${String(v??"").replace(/"/g,"&quot;")}" oninput="setT('${p}',this.value)">`;
 const inC=(p,v)=>`<input type="checkbox" ${v?"checked":""} onchange="setPath('${p}',this.checked)" style="width:auto;min-width:0">`;
@@ -206,7 +212,7 @@ function pageMR(){const pl=mpl,M=S.plants[pl].machines;
  M.forEach((m,i)=>{const p=`plants.${pl}.machines.${i}.`,R=`mrate(S.plants.${pl}.machines[${i}],'${pl}')`;
   h+=`<tr class="${m.est?"est":""}"><td style="min-width:240px">${inT(p+"name",m.name)}</td><td style="min-width:140px">${inT(p+"sector",m.sector||"")}</td><td>${inN(p+"qty",m.qty,1)}</td><td>${inN(p+"price",m.price)}</td><td>${inP(p+"resid",m.resid)}</td><td>${inN(p+"life",m.life)}</td><td>${inN(p+"kw",m.kw)}</td><td>${inN(p+"workers",m.workers)}</td>
   <td><select onchange="setPath('${p}guMode',this.value);render()"><option value="auto" ${m.guMode==="auto"?"selected":""}>auto</option><option value="manual" ${m.guMode==="manual"?"selected":""}>manual</option></select></td><td>${m.guMode==="manual"?inP(p+"guManual",m.guManual):""}</td>
-  ${O(`fm(${R}.G)`)}${O(`fm(${R}.I)`)}${O(`fm(${R}.M)`)}${O(`fm(${R}.R)`)}${O(`fm(${R}.T)`)}${O(`fp(${R}.gu)`)}${O(`fm(${R}.X)`,"tot")}${O(`fm(${R}.Y,3)`)}
+  ${O(`fm(${R}.G)`)}${O(`fm(${R}.I)`)}${O(`fm(${R}.M)`)}${O(`fm(${R}.R)`)}${O(`fm(${R}.T)`)}${O(`(${R}.gu>1?"<b class=neg>":"<b>")+fp(${R}.gu)+(${R}.gu>1?" ⚠ over capacity":"")+"</b>"`)}${O(`fm(${R}.X)`,"tot")}${O(`fm(${R}.Y,3)`)}
   <td><button class="btn del" onclick="S.plants.${pl}.machines.splice(${i},1);save();render()">✕</button></td></tr>`});
  return h+`</table><div class="row"><button class="btn" onclick="S.plants.${pl}.machines.push({id:nid('m'),name:'New machine',sector:'',qty:1,price:0,resid:.2,life:66000,kw:0,workers:1,guMode:'auto'});save();render()">+ Add machine</button></div></div>
  <div class="card"><h2>How to read it</h2><ul><li><b>Depreciation</b> = price × (1 − residual) ÷ life (h).</li><li><b>Maintenance</b> = maintenance % × hourly depreciation.</li><li><b>Energy</b> = kW × utilisation factor × €/kWh.</li><li><b>DL</b> = operators × operator hourly cost (Inputs page, per plant).</li><li><b>Indirect</b> = DL × burden rate.</li><li><b>Automatic UR</b> = Σ(volume × cycle time ÷ cavities) of that plant’s products ÷ (available hours × 3600 × no. of machines). Only costs marked “÷ UR” in Inputs use it.</li><li>Machines for a new plant are added here; product processes select them by name.</li></ul></div>`}
@@ -261,11 +267,11 @@ function pagePD(){const p=S.products.find(x=>x.id===selProd);if(!p){page="prd";r
  <div><span>Margin after G&A</span><b>${S_(`${C}.hasPrice?fm(${C}.afterGA,4)+' €':'—'`)}</b><small>${S_(`fp(${C}.afterGApct)`)}</small></div>
  <div><span>Annual margin</span><b>${S_(`${C}.hasPrice?fm(${C}.margin*${num(v.volume)}/1000,1)+' k€':'—'`)}</b><small>volume × margin</small></div></div>
  <div class="card"><h2>Structure of the calculated price · ${PN[pl]}</h2><div data-c="stack(${C})" style="margin-top:10px"></div></div>`+bomCard(pl)+
- `<div class="card"><h2>2 · Cycle times and conversion · ${PN[pl]}</h2><p class="sub">Reference time = cycle time ÷ efficiency ÷ cavities (or people). €/pc = ref. time × rate €/h ÷ 3600. For manual work choose “Manual DL” (operator hourly cost of ${PN[pl]}). Machines are those of the plant (Machines page).</p>
- <table><tr><th>Operation</th><th>Machine</th><th class="n">Cavities / people</th><th class="n">Cycle time (s)</th><th class="n">Efficiency %</th><th class="n">Ref. time (s)</th><th class="n">Rate €/h</th><th class="n">€ / pc</th><th class="n">% conv.</th><th></th></tr>`;
+ `<div class="card"><h2>2 · Cycle times and conversion · ${PN[pl]}</h2><p class="sub">Reference time = cycle time ÷ efficiency ÷ cavities (or people). €/pc = ref. time × rate €/h ÷ 3600. For manual work choose “Manual DL” (operator hourly cost of ${PN[pl]}). <b>Crew</b>: if filled (e.g. from the CIS), the operation is costed as machine (depreciation + maintenance + energy) + crew × DL (+ burden on machine stations), ignoring the machine’s generic operators; leave empty to use the machine rate as is (then “people” divide the time for manual work). Machines are those of the plant (Machines page).</p>
+ <table><tr><th>Operation</th><th>Machine</th><th class="n">Cavities / people</th><th class="n">Crew (operators)</th><th class="n">Cycle time (s)</th><th class="n">Efficiency %</th><th class="n">Ref. time (s)</th><th class="n">Rate €/h</th><th class="n">€ / pc</th><th class="n">% conv.</th><th></th></tr>`;
  v.ops.forEach((o,i)=>{const q=vb+`ops.${i}.`;
-  h+=`<tr class="${o.est?"est":""}"><td style="min-width:220px">${inT(q+"desc",o.desc)}</td><td style="min-width:230px"><select onchange="setPath('${q}machineId',this.value);render()"><option value="MOD" ${o.machineId==="MOD"?"selected":""}>Manual DL</option>${S.plants[pl].machines.map(m=>`<option value="${m.id}" ${m.id===o.machineId?"selected":""}>${m.name}</option>`).join("")}</select></td><td>${inN(q+"cav",o.cav)}</td><td>${inN(q+"cycle",o.cycle)}</td><td>${inP(q+"eff",o.eff)}</td>${O(`fm(${C}.opRows[${i}].L,2)`)}${O(`fm(${C}.opRows[${i}].rate,2)`)}${O(`fm(${C}.opRows[${i}].N,4)`,"tot")}${O(`fp(${C}.opRows[${i}].N/${C}.conv)`)}<td><button class="btn del" onclick="S.products[${ix}].v.${pl}.ops.splice(${i},1);save();render()">✕</button></td></tr>`});
- h+=`<tr class="tot"><td colspan="7">Total conversion</td>${O(`fm(${C}.conv,4)`,"tot")}<td></td><td></td></tr></table>
+  h+=`<tr class="${o.est?"est":""}"><td style="min-width:220px">${inT(q+"desc",o.desc)}</td><td style="min-width:230px"><select onchange="setPath('${q}machineId',this.value);render()"><option value="MOD" ${o.machineId==="MOD"?"selected":""}>Manual DL</option>${S.plants[pl].machines.map(m=>`<option value="${m.id}" ${m.id===o.machineId?"selected":""}>${m.name}</option>`).join("")}</select></td><td>${inN(q+"cav",o.cav)}</td><td>${inCrew(q+"crew",o.crew)}</td><td>${inN(q+"cycle",o.cycle)}</td><td>${inP(q+"eff",o.eff)}</td>${O(`fm(${C}.opRows[${i}].L,2)`)}${O(`fm(${C}.opRows[${i}].rate,2)`)}${O(`fm(${C}.opRows[${i}].N,4)`,"tot")}${O(`fp(${C}.opRows[${i}].N/${C}.conv)`)}<td><button class="btn del" onclick="S.products[${ix}].v.${pl}.ops.splice(${i},1);save();render()">✕</button></td></tr>`});
+ h+=`<tr class="tot"><td colspan="8">Total conversion</td>${O(`fm(${C}.conv,4)`,"tot")}<td></td><td></td></tr></table>
  <div class="row"><button class="btn sec" onclick="addOp(${ix},'${pl}')">+ Operation</button><button class="btn sec" onclick="copyOps(${ix},'${other}','${pl}')">Copy operations from ${PN[other]}</button></div></div>
  <div class="card"><h2>3 · From cost to price · ${PN[pl]}</h2><table style="max-width:640px">
  ${[["Raw materials / components","mat"],["Conversion","conv"],["Subtotal","sub","tot"],["Scrap "+fp(S.plants[pl].params.scrap)+" on subtotal","scrap"],["JIT/JIS logistics","log"],["INDUSTRIAL COST","ic","tot"],["Mark-up ("+fp(num(S.plants[pl].params.profit)+num(S.plants[pl].params.ga)+num(S.plants[pl].params.produttivita)+num(S.plants[pl].params.imposte))+" of price)","markup"],["PRICE CALCULATED FROM BREAKDOWN","calc","tot"]].map(r=>`<tr class="${r[2]||""}"><td>${r[0]}</td>${O(`fm(${C}.${r[1]},4)+' €'`,r[2]||"")}</tr>`).join("")}
