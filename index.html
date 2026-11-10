@@ -388,7 +388,7 @@ function bcPlant(wb,pre,year,pl){
  const er=vr.find(r=>r&&typeof r[1]==="string"&&r[1].startsWith("Annual Electricity Cost (€/year)")),pr=vr.find(r=>r&&typeof r[5]==="string"&&/€\/year/.test(r[5])&&/power/i.test(r[5])&&typeof r[6]==="number");
  if(er)add("Energy","Electricity consumption (BC annual)",er[2],"ENERGY","Information only: the console models energy from kW × €/kWh");
  if(pr)add("Energy","Electricity fixed power charge",pr[6],"ENERGY","Information only: not included in product cost");
- return{items,dl}}
+ return{items,dl:Math.round(dl)}}
 async function doImportBC(el){const f=el.files[0];if(!f)return;if(readonly()){alert("Read-only account");return}
  const year=document.getElementById("bcYear").value;let wb;
  try{wb=XLSX.read(await f.arrayBuffer(),{type:"array"})}catch(e){alert("Cannot read this Excel file");return}
