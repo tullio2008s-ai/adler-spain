@@ -28,7 +28,7 @@ th,td{padding:7px 9px;text-align:left;white-space:nowrap;border-bottom:1px solid
 th{font-size:11.5px;color:var(--mut);text-transform:uppercase;letter-spacing:.4px;font-weight:600;background:#fafbfd}
 td.n,th.n{text-align:right}tr:last-child td{border-bottom:0}
 tr.tot td{font-weight:700;background:#f0f5ff}
-th.t,td.t{border-left:3px solid var(--tng)}th.z,td.z{border-left:3px solid var(--zgz)}th.a,td.a{border-left:3px solid var(--tna)}
+th.t,td.t{border-left:3px solid var(--tng)}th.z,td.z{border-left:3px solid var(--zgz)}th.a,td.a{border-left:3px solid var(--tna)}input:disabled{background:#e9edf4!important;color:#7a859c;cursor:not-allowed}
 input[type=number],input[type=text],input[type=password],select{border:1px solid #d3d9e6;border-radius:8px;padding:6px 8px;background:#fff;font:inherit;color:inherit;width:100%;min-width:70px}
 input[type=number]{text-align:right}input:focus,select:focus{outline:2px solid #2563eb44;border-color:var(--acc)}
 .est input,.est select,input.est{background:var(--est)}
@@ -125,8 +125,12 @@ const TNA_LINK=["grossYear","social","opDays","paidHours","pause","cassa","energ
 function linkProps(o,keys,src){for(const k of keys){const d=Object.getOwnPropertyDescriptor(o,k);if(d&&d.get)continue;Object.defineProperty(o,k,{configurable:true,enumerable:false,get:()=>src()[k],set:()=>{}})}}
 const tnaOn=()=>!!(S.plants&&S.plants.TNA&&S.plants.TNA.active);
 function fixS(){const want=tnaOn()?["TNG","ZGZ","TNA"]:["TNG","ZGZ"];if(PL.join()!==want.join()){PL.length=0;PL.push(...want)}
- if(!tnaOn())return;linkProps(S.plants.TNA.params,TNA_LINK,()=>S.plants.TNG.params);
+ if(!tnaOn())return;if(!S.plants.TNA.ownLabour)linkProps(S.plants.TNA.params,TNA_LINK,()=>S.plants.TNG.params);
  for(const p of S.products){if(!p.v.TNA)p.v.TNA={ops:[]};linkProps(p.v.TNA,["volume","price","logistic"],()=>p.v.TNG)}}
+function setOwnLabour(on){if(readonly()||!tnaOn())return;const A=S.plants.TNA,T=S.plants.TNG.params;
+ if(on){for(const k of TNA_LINK)Object.defineProperty(A.params,k,{value:num(T[k]),writable:true,enumerable:true,configurable:true});A.ownLabour=true}
+ else{if(!confirm("Link wages and energy to Tangier again? The values typed for this scenario will be ignored (not deleted)."))return;A.ownLabour=false}
+ CAL={};fixS();save();render()}
 function activateTNA(){if(readonly()){alert("Read-only account");return}if(tnaOn())return;
  if(!confirm("Create the scenario “"+PN.TNA+"”?\n\nEvery product gets a third version with its own machines, processes and operators, starting as a copy of the Zaragoza ones. Wages, energy, prices and volumes stay those of Tangier. Tangier and Zaragoza data are not changed."))return;
  const cl=x=>JSON.parse(JSON.stringify(x)),T=S.plants.TNG,Z=S.plants.ZGZ;
@@ -301,10 +305,10 @@ function exportCSV(){const rows=[["Code","Description","Customer","Project","Pla
 
 function pageInp(){
  const calc={_avail:pl=>`fm(derived(S.plants.${pl}.params).avail,0)+' h'`,_net:pl=>`fm(derived(S.plants.${pl}.params).net,2)+' h'`,_mod:pl=>`fm(derived(S.plants.${pl}.params).mod,2)+' €/h'`,_burdenEff:pl=>`fp(effP('${pl}').burden)`,_maintEff:pl=>`fp(effP('${pl}').maint)`};
- let h=`<div class="info">Basic data of the plants side by side (the automated scenario shares wages and energy with Tangier). Values come from the business case and the Adler file; fields tagged <span class="badge b-es">Estimate · to validate</span> are assumptions. Every change instantly recalculates machines and products.</div>`;
+ let h=`<div class="info">Basic data of the plants side by side (the automated scenario shares wages and energy with Tangier). Values come from the business case and the Adler file; fields tagged <span class="badge b-es">Estimate · to validate</span> are assumptions. Every change instantly recalculates machines and products.</div>`+(tnaOn()?`<div class="card" style="border:2px solid var(--tna)"><label style="display:flex;gap:10px;align-items:center;font-weight:700;cursor:pointer"><input type="checkbox" style="width:auto;min-width:0" ${S.plants.TNA.ownLabour?"checked":""} onchange="setOwnLabour(this.checked)"> ${PN.TNA}: use its own wages and energy (unlink from Tangier)</label><p class="sub" style="margin:6px 0 0">${S.plants.TNA.ownLabour?"<b>ON</b>: salary, social charges, paid hours, breaks, inefficiency surcharge and energy of this scenario are editable in the green column (they started as a copy of Tangier).":"<b>OFF</b>: those fields (greyed out in the green column) are the Tangier ones: change them in the Tangier column. Switch this on if the automated line needs different wages, e.g. more skilled technicians, or a different energy price."}</p></div>`:"");
  for(const [sec,rows] of PDEF){h+=`<div class="card"><h2>${sec}</h2><table style="margin-top:8px"><tr><th>Parameter</th>${PL.map(pl=>`<th class="n ${PCLS[pl]}" style="width:150px">${PN[pl]}</th>`).join("")}<th>Unit</th><th>Source T / Z</th><th>Note</th></tr>`;
   for(const [k,l,u,dn] of rows){const d=k[0]==="_";const [sT,sZ,n0]=d?["DE","DE",""]:NOTE(k),n=n0||dn||"";
-   const cell=pl=>{const c=PCLS[pl],sx=pl==="ZGZ"?sZ:sT;if(d)return O(calc[k](pl),"tot "+c);const lk=pl==="TNA"&&TNA_LINK.includes(k),inp=PCT.has(k)?inP(`plants.${pl}.params.${k}`,S.plants[pl].params[k]):inN(`plants.${pl}.params.${k}`,S.plants[pl].params[k]);return `<td class="${c}${sx==="ES"&&!lk?" wy":""}"${lk?' title="Linked to Tangier: change it in the Tangier column"':(sx==="ES"?' title="Estimate: to be validated"':"")}>${lk?inp.replace("<input ","<input disabled "):inp}</td>`};
+   const cell=pl=>{const c=PCLS[pl],sx=pl==="ZGZ"?sZ:sT;if(d)return O(calc[k](pl),"tot "+c);const lk=pl==="TNA"&&!S.plants.TNA.ownLabour&&TNA_LINK.includes(k),inp=PCT.has(k)?inP(`plants.${pl}.params.${k}`,S.plants[pl].params[k]):inN(`plants.${pl}.params.${k}`,S.plants[pl].params[k]);return `<td class="${c}${sx==="ES"&&!lk?" wy":""}"${lk?' title="Linked to Tangier: change it in the Tangier column"':(sx==="ES"?' title="Estimate: to be validated"':"")}>${lk?inp.replace("<input ","<input disabled "):inp}</td>`};
    h+=`<tr><td>${l}</td>${PL.map(cell).join("")}<td>${u}</td><td><span class="badge ${SRC[sT][1]}">${SRC[sT][0]}</span> <span class="badge ${SRC[sZ][1]}">${SRC[sZ][0]}</span></td><td style="white-space:normal;min-width:300px;color:#6b7590">${n}</td></tr>`}
   h+=`</table></div>`}
  h+=`<div class="card"><h2>How fixed costs are charged to machines</h2><p class="sub">UR = machine utilisation rate (volumes × times ÷ available hours).</p><table><tr><th>Option</th>${PL.map(pl=>`<th class="${PCLS[pl]}">${PN[pl]}</th>`).join("")}<th>Note</th></tr>`;
