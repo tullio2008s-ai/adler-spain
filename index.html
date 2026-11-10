@@ -106,7 +106,7 @@ table.tw th,table.tw td{white-space:normal;padding:6px 7px}table.tw th{vertical-
 const PL=["TNG","ZGZ"],PN={TNG:"Tangier",ZGZ:"Zaragoza"};
 const FLAGS=()=>({dep:false,maint:false,energy:false,cassa:false,indirect:false,burdenManual:false});
 const P0=()=>({days:248,opDays:248,shifts:3,hoursShift:8,paidHours:1744,pause:0,grossYear:0,social:0,energyPrice:0,energyUse:.75,maintPct:.577,burden:0,cassa:0,oee:.85,scrap:.03,ga:.08,profit:.08,produttivita:0,imposte:0,depExcl:false,burdenMode:"manual",maintMode:"manual"});
-function build(){return{name:"ADLER product cost",plants:{TNG:{name:"Tangier",params:P0(),flags:FLAGS(),machines:[],dlBase:0,items:[]},ZGZ:{name:"Zaragoza",params:P0(),flags:FLAGS(),machines:[],dlBase:0,items:[]}},materials:[],products:[],notes:{},guide:{excel:[],points:[]},check:null}}
+function build(){return{name:"ADLER product cost",plants:{TNG:{name:"Tangier",params:P0(),flags:FLAGS(),machines:[],dlBase:0,items:[]},ZGZ:{name:"Zaragoza",params:P0(),flags:FLAGS(),machines:[],dlBase:0,items:[]}},materials:[],products:[],notes:{},guide:{excel:[],points:[]},check:null,alignZ:false,alignBasis:"pool"}}
 /* fonti per parametro: [chiave, etichetta, UM, fonte Tangeri, fonte Zaragoza, nota] */
 const SRC={BC:["Business case","b-bc"],AD:["Adler file","b-ad"],ES:["Estimate · to validate","b-es"],DE:["Calculated","b-de"]};
 const NOTE=k=>(S.notes&&S.notes[k])||["ES","ES",""];
@@ -134,11 +134,13 @@ function guOf(m,pl,st=S){if(m.guMode==="manual")return num(m.guManual);
  const avail=derived(st.plants[pl].params).avail*3600*(num(m.qty)||1);return avail?sec/avail:0}
 const CLS={BURDEN:"Burden",GA:"G&A",MAINT:"Maintenance",ENERGY:"Energy (info)",DL:"Direct labour (base)",EXCL:"Excluded"};
 function depAnnual(pl,st=S){const p=st.plants[pl],av=derived(p.params).avail;return p.machines.reduce((a,m)=>a+num(m.qty)*num(m.price)*(1-num(m.resid))*av/(num(m.life)||1),0)}
-function burdenCalc(pl,st=S){const p=st.plants[pl],t={BURDEN:0,GA:0,MAINT:0,ENERGY:0,DL:0,EXCL:0};for(const i of (p.items||[]))t[i.cls]=(t[i.cls]||0)+num(i.annual);
+function burdenCalc(pl,st=S){const p=st.plants[pl],t={BURDEN:0,GA:0,MAINT:0,ENERGY:0,DL:0,EXCL:0},src=(pl==="TNG"&&st.alignZ&&st.alignBasis!=="rate")?(st.plants.ZGZ.items||[]):(p.items||[]);for(const i of src)t[i.cls]=(t[i.cls]||0)+num(i.annual);
  const rev=st.products.reduce((a,x)=>a+(x.v[pl]?num(x.v[pl].price)*num(x.v[pl].volume):0),0),dep=depAnnual(pl,st),dl=num(p.dlBase);
  return{t,rev,dep,dl,burdenRate:dl>0?t.BURDEN/dl:NaN,maintRate:dep>0?t.MAINT/dep:NaN,gaPct:rev>0?t.GA/rev:NaN}}
-function effP(pl,st=S){const p=st.plants[pl],P=p.params,B=burdenCalc(pl,st);let burden=num(P.burden),maint=num(P.maintPct);
- if(P.burdenMode==="split"&&isFinite(B.burdenRate))burden=B.burdenRate;if(P.maintMode==="split"&&isFinite(B.maintRate))maint=B.maintRate;return{burden,maint,B}}
+function effP(pl,st=S){const p=st.plants[pl],P=p.params,B=burdenCalc(pl,st),al=pl==="TNG"&&st.alignZ;let burden=num(P.burden),maint=num(P.maintPct);
+ if((P.burdenMode==="split"||al)&&isFinite(B.burdenRate))burden=B.burdenRate;if((P.maintMode==="split"||al)&&isFinite(B.maintRate))maint=B.maintRate;
+ if(al&&st.alignBasis==="rate"){const z=effP("ZGZ",st);burden=z.burden;maint=z.maint}
+ return{burden,maint,B}}
 function mrate(m,pl,st=S){const P=st.plants[pl].params,F=st.plants[pl].flags,D=derived(P),E=effP(pl,st),gu=guOf(m,pl,st),d=gu>0?gu:1,r={gu};
  const G0=num(m.price)*(1-num(m.resid))/(num(m.life)||1);
  r.G=F.dep?G0/d:G0;r.I=E.maint*((F.maint&&!F.dep)?G0/d:r.G);
@@ -195,6 +197,7 @@ const wMarginGA=c=>c.hasPrice&&c.afterGA<0?FW("y","Margin negative after G&A"):n
 function absorb(pl,st=S){let dl=0,bur=0,dep=0,mnt=0,en=0;for(const p of st.products){const v=p.v[pl];if(!v)continue;const c=pcalc(p,pl,st),vol=num(v.volume);dl+=vol*c.cR;bur+=vol*c.cT;dep+=vol*c.cG;mnt+=vol*c.cI;en+=vol*c.cM}return{dl,bur,dep,mnt,en}}
 function wRatio(x,y,l){if(!(y>0))return null;const r=x/y,d=Math.abs(r-1);if(d>.3)return FW("o",l+": "+fp(r)+" of the reference");if(d>.1)return FW("y",l+": "+fp(r)+" of the reference");return null}
 function allChecks(st=S){const L=[],add=(l,pl,area,msg,page,prod)=>L.push({l,pl,area,msg,page,prod});
+ if(st.alignZ)add("y","TNG","Comparison basis","Tangier overhead is aligned to the Zaragoza P&L: results are a like-for-like scenario, not the Tangier Business Case","bur");
  for(const pl of PL){const p=st.plants[pl];
   p.machines.forEach(m=>{const w=wUR(guOf(m,pl,st));if(w)add(w.l,pl,"Machine · "+m.name,w.m,"mr");if(!(num(m.price)>0))add("y",pl,"Machine · "+m.name,"Price missing","mr");if(!(num(m.kw)>0))add("y",pl,"Machine · "+m.name,"kW missing","mr")});
   const A=absorb(pl,st),B=burdenCalc(pl,st),ck=(x,y,l)=>{const w=wRatio(x,y,l);if(w)add(w.l,pl,"Burden & rates",w.m,"bur")};
@@ -218,7 +221,7 @@ function render(keep){
  const CK=allChecks(),nO=CK.filter(x=>x.l==="o").length,nY=CK.length-nO;document.getElementById("nav").innerHTML=PAGES.map(([k,i,t])=>`<button class="nv ${(page===k||(page==="pd"&&k==="prd"))?"on":""}" onclick="go('${k}')"><span>${i}</span>${t}${k==="chk"&&CK.length?`<span class="navb ${nO?"":"y"}" title="${nO} anomalies, ${nY} to verify">${nO?nO+"⚠":nY}</span>`:""}</button>`).join("");
  const T={dash:"Overview · Tangier vs Zaragoza",inp:"Basic inputs",bur:"Burden split & hourly rates",mr:"Machines & processes · machine rate",mat:"Materials master",prd:"Products",pd:"Product sheet",gui:"Guide & checks",chk:"Data checks"};
  document.getElementById("title").textContent=T[page];
- document.getElementById("main").innerHTML={dash:pageDash,inp:pageInp,bur:pageBur,chk:pageChk,mr:pageMR,mat:pageMat,prd:pagePrd,pd:pagePD,gui:pageGui}[page]();refresh();if(readonly())document.querySelectorAll("#main input,#main select,#main button.btn:not([data-ok])").forEach(e=>e.disabled=true);if(!keep)window.scrollTo(0,0)}
+ const pre=page==="dash"?alignSwitch():(page==="bur"&&bpl==="CMP")?alignSwitch():alignBanner();document.getElementById("main").innerHTML=pre+{dash:pageDash,inp:pageInp,bur:pageBur,chk:pageChk,mr:pageMR,mat:pageMat,prd:pagePrd,pd:pagePD,gui:pageGui}[page]();refresh();if(readonly())document.querySelectorAll("#main input,#main select,#main button.btn:not([data-ok])").forEach(e=>e.disabled=true);if(!keep)window.scrollTo(0,0)}
 function go(k){page=k;render()}
 function openProd(id,t){selProd=id;if(t)tab=t;page="pd";render()}
 function resetData(){if(ME&&ME.ruolo!=="admin"){alert("Only the administrator can reset the data");return}if(!confirm("WARNING: this erases the SHARED data of all users. Continue?"))return;if(!confirm("Confirm again: this cannot be undone (only the history log remains)."))return;S=build();selProd=null;save();go("dash")}
@@ -445,6 +448,13 @@ async function doImportBC(el){const f=el.files[0];if(!f)return;if(readonly()){al
   const p=S.plants[pl];p.items=g.items;p.dlBase=g.dl;p.params.burdenMode="split";p.params.maintMode="split";
   const B=burdenCalc(pl);out.push(PN[pl]+": "+g.items.length+" items, burden "+fm(B.t.BURDEN,0)+" €, DL base "+fm(g.dl,0)+" €, burden rate "+fp(B.burdenRate))}
  el.value="";save();alert("Imported from the Business Case ("+year+"):\n"+out.join("\n"));render()}
+function tngIC(al){const a=S.alignZ;S.alignZ=al;try{let ic=0,bur=0;for(const p of S.products){const c=pcalc(p,"TNG"),v=num(p.v.TNG.volume);ic+=v*c.ic;bur+=v*c.cT}const E=effP("TNG");return{ic,bur,rate:E.burden}}finally{S.alignZ=a}}
+function alignSwitch(){const on=!!S.alignZ,o=tngIC(false),n=tngIC(true);
+ return `<div class="card" style="border:2px solid ${on?"#f59e0b":"var(--line)"};${on?"background:#fffbeb":""}"><div class="row"><label style="display:flex;gap:10px;align-items:center;font-weight:700;cursor:pointer"><input type="checkbox" style="width:auto;min-width:0;transform:scale(1.3)" ${on?"checked":""} onchange="setPath('alignZ',this.checked);render()"> Compare on the same basis: move the Tangier overhead to the Zaragoza P&amp;L level</label>
+ <select style="width:auto" onchange="setPath('alignBasis',this.value);render()" ${on?"":"disabled"}><option value="pool" ${S.alignBasis!=="rate"?"selected":""}>Same € overhead pool (Zaragoza items and classification)</option><option value="rate" ${S.alignBasis==="rate"?"selected":""}>Same burden rate % (Zaragoza rate on Tangier labour)</option></select></div>
+ <p class="sub" style="margin:6px 0 0">${on?"<b>ON</b>: Tangier burden, G&A and maintenance use the Zaragoza level, so the two plants are compared on the same overhead basis. Tangier results are a like-for-like scenario, not the Tangier Business Case.":"<b>OFF</b>: each plant uses its own Business Case overhead."}
+ Industrial cost of all Tangier products: own overhead <b>${fm(o.ic/1e6,2)} M€</b> (burden rate ${fp(o.rate)}) · aligned to Zaragoza <b>${fm(n.ic/1e6,2)} M€</b> (burden rate ${fp(n.rate)}) · difference ${fm((n.ic-o.ic)/1e3,0)} k€/year.</p></div>`}
+const alignBanner=()=>S.alignZ?`<div class="warn" style="background:#fffbeb;border-color:#fcd34d;color:#78350f">⚖ <b>Tangier overhead aligned to the Zaragoza P&amp;L</b> (${S.alignBasis==="rate"?"same burden rate":"same € pool"}): Tangier figures are a like-for-like scenario. Switch it off in Overview or in Burden &amp; rates → Comparison.</div>`:"";
 const COMP=[["G","Depreciation","#0f766e"],["I","Maintenance","#14b8a6"],["M","Energy","#5eead4"],["R","Direct labour","#0369a1"],["T","Burden","#7c3aed"]];
 function miniBar(r){const t=r.rate||1;return `<div class="stack" style="height:14px">${COMP.map(c=>`<div style="width:${Math.max(0,r[c[0]]/t*100)}%;background:${c[2]}" title="${c[1]} ${fm(r[c[0]],2)} €/h"></div>`).join("")}</div>`}
 let cmpF="diff";
@@ -521,7 +531,7 @@ async function reportPDF(full,onlyId){
   y=tbl({startY:y,head:[["Parameter","Tangier","Zaragoza"]],body:[
    ar("Available machine hours / year",k=>fm(D[k].avail,0)),ar("Net presence hours / month",k=>fm(D[k].net,1)),ar("Gross annual salary, direct operator (EUR)",k=>fm(PP[k].grossYear,0)),
    ar("Employer social charges",k=>pp(PP[k].social)),ar("Direct labour hourly cost (EUR/h)",k=>fm(D[k].mod,2)),ar("Electricity (EUR/kWh)",k=>fm(PP[k].energyPrice,4)),
-   ar("Burden rate (indirect / DL)",k=>pp(PP[k].burden)),ar("Maintenance (% of depreciation)",k=>pp(PP[k].maintPct)),ar("Efficiency / OEE",k=>pp(PP[k].oee)),ar("Scrap",k=>pp(PP[k].scrap)),ar("Profit + G&A (on price)",k=>pp(num(PP[k].profit)+num(PP[k].ga)))],
+   ar("Overhead basis",k=>k==="TNG"&&S.alignZ?"Aligned to Zaragoza P&L ("+(S.alignBasis==="rate"?"same rate":"same EUR pool")+")":"Own Business Case"),ar("Burden rate (indirect / DL)",k=>pp(PP[k].burden)),ar("Maintenance (% of depreciation)",k=>pp(PP[k].maintPct)),ar("Efficiency / OEE",k=>pp(PP[k].oee)),ar("Scrap",k=>pp(PP[k].scrap)),ar("Profit + G&A (on price)",k=>pp(num(PP[k].profit)+num(PP[k].ga)))],
    columnStyles:{0:{cellWidth:260},1:{halign:"right"},2:{halign:"right"}},tableWidth:520})+14;
   {const BT={TNG:burdenCalc("TNG"),ZGZ:burdenCalc("ZGZ")},EE={TNG:effP("TNG"),ZGZ:effP("ZGZ")};if(y>H-200){doc.addPage();y=60}
    y=h2("Burden split and hourly rates",y);
@@ -569,8 +579,8 @@ const readonly=()=>ME&&ME.ruolo==="viewer";
 async function call(fn,...args){let r;try{r=await fetch(API,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify({fn,args,token:TOKEN})})}catch(e){throw new Error("Server unreachable")}
  const j=await r.json();if(j.status===401&&fn!=="apiLogin"){logout(true);throw new Error("Session expired")}if(j.error)throw new Error(j.error);return j.data}
 function setStatus(t,bad){const e=document.getElementById("stat");if(e){e.textContent=t;e.className="badge "+(bad?"b-es":"b-bc")}}
-function docsOf(st){const d={meta:{name:st.name||"",ids:st.products.map(p=>p.id)},notes:st.notes||{},guide:st.guide||{},materials:st.materials};if(st.check)d.check=st.check;for(const k of PL)d["plant:"+k]=st.plants[k];for(const p of st.products)d["prod:"+p.id]=p;return d}
-function applyDoc(k,val){if(k==="meta"){S.name=val.name;S._ids=val.ids;S.products.sort((a,b)=>S._ids.indexOf(a.id)-S._ids.indexOf(b.id))}
+function docsOf(st){const d={meta:{name:st.name||"",ids:st.products.map(p=>p.id),alignZ:!!st.alignZ,alignBasis:st.alignBasis||"pool"},notes:st.notes||{},guide:st.guide||{},materials:st.materials};if(st.check)d.check=st.check;for(const k of PL)d["plant:"+k]=st.plants[k];for(const p of st.products)d["prod:"+p.id]=p;return d}
+function applyDoc(k,val){if(k==="meta"){S.name=val.name;S.alignZ=!!val.alignZ;S.alignBasis=val.alignBasis||"pool";S._ids=val.ids;S.products.sort((a,b)=>S._ids.indexOf(a.id)-S._ids.indexOf(b.id))}
  else if(k==="notes")S.notes=val;else if(k==="guide")S.guide=val;else if(k==="check")S.check=val;else if(k==="materials")S.materials=val;
  else if(k.startsWith("plant:"))S.plants[k.slice(6)]=val;
  else if(k.startsWith("prod:")){const i=S.products.findIndex(p=>p.id===val.id);if(i>=0)S.products[i]=val;else S.products.push(val);if(S._ids)S.products.sort((a,b)=>S._ids.indexOf(a.id)-S._ids.indexOf(b.id))}}
