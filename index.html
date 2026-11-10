@@ -106,7 +106,7 @@ table.tw th,table.tw td{white-space:normal;padding:6px 7px}table.tw th{vertical-
 const PL=["TNG","ZGZ"],PN={TNG:"Tangier",ZGZ:"Zaragoza"};
 const FLAGS=()=>({dep:false,maint:false,energy:false,cassa:false,indirect:false,burdenManual:false});
 const P0=()=>({days:248,opDays:248,shifts:3,hoursShift:8,paidHours:1744,pause:0,grossYear:0,social:0,energyPrice:0,energyUse:.75,maintPct:.577,burden:0,cassa:0,oee:.85,scrap:.03,ga:.08,profit:.08,produttivita:0,imposte:0,depExcl:false,burdenMode:"manual",maintMode:"manual"});
-function build(){return{name:"ADLER product cost",plants:{TNG:{name:"Tangier",params:P0(),flags:FLAGS(),machines:[],dlBase:0,items:[]},ZGZ:{name:"Zaragoza",params:P0(),flags:FLAGS(),machines:[],dlBase:0,items:[]}},materials:[],products:[],notes:{},guide:{excel:[],points:[]},check:null,alignZ:false,alignBasis:"pool"}}
+function build(){return{name:"ADLER product cost",plants:{TNG:{name:"Tangier",params:P0(),flags:FLAGS(),machines:[],dlBase:0,items:[]},ZGZ:{name:"Zaragoza",params:P0(),flags:FLAGS(),machines:[],dlBase:0,items:[]}},materials:[],products:[],notes:{},guide:{excel:[],points:[]},check:null,alignZ:false,alignBasis:"pool",recovery:false}}
 /* fonti per parametro: [chiave, etichetta, UM, fonte Tangeri, fonte Zaragoza, nota] */
 const SRC={BC:["Business case","b-bc"],AD:["Adler file","b-ad"],ES:["Estimate · to validate","b-es"],DE:["Calculated","b-de"]};
 const NOTE=k=>(S.notes&&S.notes[k])||["ES","ES",""];
@@ -130,43 +130,54 @@ function derived(P){const avail=num(P.days)*num(P.shifts)*num(P.hoursShift);
  const net=((num(P.paidHours)/(num(P.opDays)||1))-num(P.pause))*num(P.opDays)/12;
  return{avail,net,mod:num(P.grossYear)*(1+num(P.social))/((net*12)||1)}}
 function guOf(m,pl,st=S){if(m.guMode==="manual")return num(m.guManual);
- let sec=0;for(const p of st.products){const v=p.v[pl];if(!v)continue;for(const o of v.ops)if(o.machineId===m.id)sec+=num(v.volume)*num(o.cycle)/(num(o.cav)||1)}
+ let sec=0;for(const p of st.products){const v=p.v[pl];if(!v)continue;for(const o of v.ops)if(o.machineId===m.id)sec+=num(v.volume)*num(o.cycle)/(num(o.eff)||1)/(num(o.cav)||1)}
  const avail=derived(st.plants[pl].params).avail*3600*(num(m.qty)||1);return avail?sec/avail:0}
 const CLS={BURDEN:"Burden",GA:"G&A",MAINT:"Maintenance",ENERGY:"Energy (info)",DL:"Direct labour (base)",EXCL:"Excluded"};
 function depAnnual(pl,st=S){const p=st.plants[pl],av=derived(p.params).avail;return p.machines.reduce((a,m)=>a+num(m.qty)*num(m.price)*(1-num(m.resid))*av/(num(m.life)||1),0)}
 function burdenCalc(pl,st=S){const p=st.plants[pl],t={BURDEN:0,GA:0,MAINT:0,ENERGY:0,DL:0,EXCL:0},src=(pl==="TNG"&&st.alignZ&&st.alignBasis!=="rate")?(st.plants.ZGZ.items||[]):(p.items||[]);for(const i of src)t[i.cls]=(t[i.cls]||0)+num(i.annual);
  const rev=st.products.reduce((a,x)=>a+(x.v[pl]?num(x.v[pl].price)*num(x.v[pl].volume):0),0),dep=depAnnual(pl,st),dl=num(p.dlBase);
  return{t,rev,dep,dl,burdenRate:dl>0?t.BURDEN/dl:NaN,maintRate:dep>0?t.MAINT/dep:NaN,gaPct:rev>0?t.GA/rev:NaN}}
-function effP(pl,st=S){const p=st.plants[pl],P=p.params,B=burdenCalc(pl,st),al=pl==="TNG"&&st.alignZ;let burden=num(P.burden),maint=num(P.maintPct);
+let CAL={};
+function calib(pl,st=S){if(st===S&&CAL[pl])return CAL[pl];const r=calibCompute(pl,st);if(st===S)CAL[pl]=r;return r}
+function calibCompute(pl,st){const B=burdenCalc(pl,st),prev=st._cal;let sDL=0,sDep=0,sIC=0;st._cal=Object.assign({},prev||{});
+ try{st._cal[pl]={burden:0,maint:0,B};
+  for(const p of st.products){const v=p.v[pl];if(!v)continue;const c=pcalc(p,pl,st),vol=num(v.volume);sDL+=vol*c.opRows.reduce((a,r)=>a+(r.carry?r.nR:0),0);sDep+=vol*c.cG}
+  const bu=sDL>0?B.t.BURDEN/sDL:0,mt=sDep>0?B.t.MAINT/sDep:0;st._cal[pl]={burden:bu,maint:mt,B};
+  for(const p of st.products){const v=p.v[pl];if(!v)continue;sIC+=num(v.volume)*pcalc(p,pl,st).ic}
+  return{ok:sDL>0&&sDep>0,burden:bu,maint:mt,gaRate:sIC>0?B.t.GA/sIC:0,sDL,sDep,sIC,B}}
+ finally{st._cal=prev}}
+function effP(pl,st=S){if(st._cal&&st._cal[pl])return st._cal[pl];const p=st.plants[pl],P=p.params,B=burdenCalc(pl,st),al=pl==="TNG"&&st.alignZ;let burden=num(P.burden),maint=num(P.maintPct);
  if((P.burdenMode==="split"||al)&&isFinite(B.burdenRate))burden=B.burdenRate;if((P.maintMode==="split"||al)&&isFinite(B.maintRate))maint=B.maintRate;
  if(al&&st.alignBasis==="rate"){const z=effP("ZGZ",st);burden=z.burden;maint=z.maint}
+ if(st.recovery){const c=calib(pl,st);if(c.ok){burden=c.burden;maint=c.maint}}
  return{burden,maint,B}}
 function mrate(m,pl,st=S){const P=st.plants[pl].params,F=st.plants[pl].flags,D=derived(P),E=effP(pl,st),gu=guOf(m,pl,st),d=gu>0?gu:1,r={gu};
  const G0=num(m.price)*(1-num(m.resid))/(num(m.life)||1);
- r.G=F.dep?G0/d:G0;r.I=E.maint*((F.maint&&!F.dep)?G0/d:r.G);
+ const depOn=F.dep||!!st.recovery;r.G=depOn?G0/d:G0;r.I=E.maint*((F.maint&&!depOn)?G0/d:r.G);
  const M0=num(m.kw)*num(P.energyUse)*num(P.energyPrice);r.M=F.energy?M0/d:M0;
- r.R=num(m.workers)*D.mod*(F.cassa?1+num(P.cassa):1);r.T=r.R*E.burden/(F.indirect?d:1);
+ r.R=num(m.workers)*D.mod*(F.cassa?1+num(P.cassa):1);r.T=r.R*E.burden/((F.indirect&&!st.recovery)?d:1);
  r.V=r.G+r.I+r.M+r.R+r.T;r.X=r.V-(P.depExcl?r.G:0);r.Y=r.X/60;return r}
 function opCalc(o,pl,st=S){const P=st.plants[pl].params,F=st.plants[pl].flags,D=derived(P),E=effP(pl,st);
  const m=o.machineId==="MOD"?null:st.plants[pl].machines.find(x=>x.id===o.machineId),mr=m?mrate(m,pl,st):null;
  const hasCrew=o.crew!==undefined&&o.crew!==null&&o.crew!=="";let G=0,I=0,M=0,R=0,T=0;
- if(mr){G=P.depExcl?0:mr.G;I=mr.I;M=mr.M;if(hasCrew){R=num(o.crew)*D.mod*(F.cassa?1+num(P.cassa):1);T=R*E.burden/(F.indirect?(mr.gu>0?mr.gu:1):1)}else{R=mr.R;T=mr.T}}
+ if(mr){G=P.depExcl?0:mr.G;I=mr.I;M=mr.M;if(hasCrew){R=num(o.crew)*D.mod*(F.cassa?1+num(P.cassa):1);T=R*E.burden/((F.indirect&&!st.recovery)?(mr.gu>0?mr.gu:1):1)}else{R=mr.R;T=mr.T}}
  else{R=hasCrew?num(o.crew)*D.mod*(F.cassa?1+num(P.cassa):1):D.mod;T=F.burdenManual?R*E.burden:0}
  const L=num(o.cycle)/(num(o.eff)||1)/(num(o.cav)||1),rate=G+I+M+R+T,f=L/3600;
  const heads=hasCrew?num(o.crew):(m?num(m.workers):num(o.cav));
- return{L,rate,N:f*rate,G,I,M,R,T,nG:f*G,nI:f*I,nM:f*M,nR:f*R,nT:f*T,heads,hasCrew,mname:m?m.name:"Manual DL",gu:mr?mr.gu:0}}
+ return{L,rate,N:f*rate,G,I,M,R,T,nG:f*G,nI:f*I,nM:f*M,nR:f*R,nT:f*T,heads,hasCrew,mname:m?m.name:"Manual DL",gu:mr?mr.gu:0,carry:!!m||!!F.burdenManual}}
 function pcalc(p,pl,st=S){const P=st.plants[pl].params,D=derived(P),v=p.v[pl],c={bomRows:[],opRows:[],mat:0,conv:0};
  for(const b of p.bom){const m=st.materials.find(x=>x.id===b.matId);const r=m?num(m.cost[pl])*num(b.qty):0;c.bomRows.push(r);c.mat+=r}
  c.cG=c.cI=c.cM=c.cR=c.cT=0;c.heads=0;c.dlMin=0;
  for(const o of v.ops){const r=opCalc(o,pl,st);c.opRows.push(r);c.conv+=r.N;c.cG+=r.nG;c.cI+=r.nI;c.cM+=r.nM;c.cR+=r.nR;c.cT+=r.nT;c.heads+=r.heads;c.dlMin+=r.heads*r.L/60}
  c.sub=c.mat+c.conv;c.scrap=c.sub*num(P.scrap);c.log=num(v.logistic);c.ic=c.sub+c.scrap+c.log;
- const mk=num(P.profit)+num(P.ga)+num(P.produttivita)+num(P.imposte);c.mk=mk;c.markup=c.ic/(1-mk)-c.ic;c.calc=c.ic+c.markup;
+ const recOn=!!st.recovery&&!(st._cal&&st._cal[pl]);c.gaA=recOn?calib(pl,st).gaRate*c.ic:0;
+ const mk=num(P.profit)+(st.recovery?0:num(P.ga))+num(P.produttivita)+num(P.imposte);c.mk=mk;c.calc=(c.ic+c.gaA)/(1-mk);c.markup=c.calc-c.ic;
  const sp=num(v.price);c.hasPrice=sp>0;c.margin=sp>0?sp-c.ic:NaN;c.marginPct=sp>0?c.margin/sp:NaN;
- c.afterGA=sp>0?c.margin-sp*num(P.ga):NaN;c.afterGApct=sp>0?c.afterGA/sp:NaN;c.beGA=c.ic/(1-num(P.ga));c.matShare=c.calc?c.mat/c.calc:NaN;
+ c.afterGA=sp>0?c.margin-(st.recovery?c.gaA:sp*num(P.ga)):NaN;c.afterGApct=sp>0?c.afterGA/sp:NaN;c.beGA=st.recovery?c.ic+c.gaA:c.ic/(1-num(P.ga));c.matShare=c.calc?c.mat/c.calc:NaN;
  c.complete=v.ops.length>0&&p.bom.length>0;return c}
 
 /* ======================= UTILITÀ UI ======================= */
-function setPath(path,v){const k=path.split(".");let o=S;for(let i=0;i<k.length-1;i++)o=o[k[i]];o[k[k.length-1]]=v;save();refresh()}
+function setPath(path,v){CAL={};const k=path.split(".");let o=S;for(let i=0;i<k.length-1;i++)o=o[k[i]];o[k[k.length-1]]=v;save();refresh()}
 const setN=(p,v)=>setPath(p,num(v)),setP=(p,v)=>setPath(p,num(v)/100),setT=(p,v)=>setPath(p,v);
 const rnd=v=>Math.round(v*1e9)/1e9;
 const inN=(p,v,st="any")=>`<input type="number" step="${st}" value="${v}" oninput="setN('${p}',this.value)">`;
@@ -176,7 +187,7 @@ const inT=(p,v)=>`<input type="text" value="${String(v??"").replace(/"/g,"&quot;
 const inC=(p,v)=>`<input type="checkbox" ${v?"checked":""} onchange="setPath('${p}',this.checked)" style="width:auto;min-width:0">`;
 const O=(e,cls="",w="")=>`<td class="out ${cls}" data-c="${e.replace(/"/g,"&quot;")}"${w?` data-w="${w.replace(/"/g,"&quot;")}"`:""}></td>`;
 const S_=(e,cls="")=>`<span class="${cls}" data-c="${e.replace(/"/g,"&quot;")}"></span>`;
-function refresh(){document.querySelectorAll("[data-c],[data-w]").forEach(e=>{
+function refresh(){CAL={};document.querySelectorAll("[data-c],[data-w]").forEach(e=>{
  if(e.dataset.c!==undefined){try{e.innerHTML=eval(e.dataset.c)}catch(x){e.innerHTML="—"}}
  if(e.dataset.w!==undefined){let w=null;try{w=eval(e.dataset.w)}catch(x){}
   e.classList.remove("wy","wo");e.removeAttribute("title");
@@ -197,6 +208,7 @@ const wMarginGA=c=>c.hasPrice&&c.afterGA<0?FW("y","Margin negative after G&A"):n
 function absorb(pl,st=S){let dl=0,bur=0,dep=0,mnt=0,en=0;for(const p of st.products){const v=p.v[pl];if(!v)continue;const c=pcalc(p,pl,st),vol=num(v.volume);dl+=vol*c.cR;bur+=vol*c.cT;dep+=vol*c.cG;mnt+=vol*c.cI;en+=vol*c.cM}return{dl,bur,dep,mnt,en}}
 function wRatio(x,y,l){if(!(y>0))return null;const r=x/y,d=Math.abs(r-1);if(d>.3)return FW("o",l+": "+fp(r)+" of the reference");if(d>.1)return FW("y",l+": "+fp(r)+" of the reference");return null}
 function allChecks(st=S){const L=[],add=(l,pl,area,msg,page,prod)=>L.push({l,pl,area,msg,page,prod});
+ if(st.recovery)for(const pl of PL)for(const r of recoveryRows(pl,st)){if(r[1]>0&&Math.abs(r[2]/r[1]-1)>.005&&r[2]>0)add("o",pl,"Cost recovery",r[0]+": recovered "+fp(r[2]/r[1])+" instead of 100%","bur")}
  if(st.alignZ)add("y","TNG","Comparison basis","Tangier overhead is aligned to the Zaragoza P&L: results are a like-for-like scenario, not the Tangier Business Case","bur");
  for(const pl of PL){const p=st.plants[pl];
   p.machines.forEach(m=>{const w=wUR(guOf(m,pl,st));if(w)add(w.l,pl,"Machine · "+m.name,w.m,"mr");if(!(num(m.price)>0))add("y",pl,"Machine · "+m.name,"Price missing","mr");if(!(num(m.kw)>0))add("y",pl,"Machine · "+m.name,"kW missing","mr")});
@@ -217,11 +229,11 @@ function pageChk(){const L=allChecks(),o=L.filter(x=>x.l==="o").length,y=L.lengt
  <div class="card"><h2>Data checks</h2><p class="sub">Automatic checks on the current data. <b>Orange</b> = probable anomaly, <b>yellow</b> = to be verified. The same warnings appear next to the cells concerned (hover the ⚠ for the explanation).</p>
  <table><tr><th></th><th>Plant</th><th>Where</th><th>Message</th><th></th></tr>${L.map((x,i)=>`<tr class="${x.l==="o"?"wo":"wy"}"><td>⚠</td><td>${x.pl?PN[x.pl]:"All"}</td><td>${esc(x.area)}</td><td style="white-space:normal;min-width:320px">${esc(x.msg)}</td><td><button class="btn sec" data-ok="1" onclick="gotoChk(${i})">Open</button></td></tr>`).join("")||'<tr><td colspan="5">No warnings.</td></tr>'}</table></div>`}
 const PAGES=[["dash","▦","Overview"],["inp","⚙","Basic inputs"],["bur","⚖","Burden & rates"],["mr","🏭","Machines & processes"],["mat","▤","Materials"],["prd","📦","Products"],["chk","⚠","Data checks"],["gui","✔","Guide & checks"]];
-function render(keep){
+function render(keep){CAL={};
  const CK=allChecks(),nO=CK.filter(x=>x.l==="o").length,nY=CK.length-nO;document.getElementById("nav").innerHTML=PAGES.map(([k,i,t])=>`<button class="nv ${(page===k||(page==="pd"&&k==="prd"))?"on":""}" onclick="go('${k}')"><span>${i}</span>${t}${k==="chk"&&CK.length?`<span class="navb ${nO?"":"y"}" title="${nO} anomalies, ${nY} to verify">${nO?nO+"⚠":nY}</span>`:""}</button>`).join("");
  const T={dash:"Overview · Tangier vs Zaragoza",inp:"Basic inputs",bur:"Burden split & hourly rates",mr:"Machines & processes · machine rate",mat:"Materials master",prd:"Products",pd:"Product sheet",gui:"Guide & checks",chk:"Data checks"};
  document.getElementById("title").textContent=T[page];
- const pre=page==="dash"?alignSwitch():(page==="bur"&&bpl==="CMP")?alignSwitch():alignBanner();document.getElementById("main").innerHTML=pre+{dash:pageDash,inp:pageInp,bur:pageBur,chk:pageChk,mr:pageMR,mat:pageMat,prd:pagePrd,pd:pagePD,gui:pageGui}[page]();refresh();if(readonly())document.querySelectorAll("#main input,#main select,#main button.btn:not([data-ok])").forEach(e=>e.disabled=true);if(!keep)window.scrollTo(0,0)}
+ const pre=page==="dash"?alignSwitch()+recSwitch():(page==="bur"&&bpl==="CMP")?alignSwitch():alignBanner();document.getElementById("main").innerHTML=pre+{dash:pageDash,inp:pageInp,bur:pageBur,chk:pageChk,mr:pageMR,mat:pageMat,prd:pagePrd,pd:pagePD,gui:pageGui}[page]();refresh();if(readonly())document.querySelectorAll("#main input,#main select,#main button.btn:not([data-ok])").forEach(e=>e.disabled=true);if(!keep)window.scrollTo(0,0)}
 function go(k){page=k;render()}
 function openProd(id,t){selProd=id;if(t)tab=t;page="pd";render()}
 function resetData(){if(ME&&ME.ruolo!=="admin"){alert("Only the administrator can reset the data");return}if(!confirm("WARNING: this erases the SHARED data of all users. Continue?"))return;if(!confirm("Confirm again: this cannot be undone (only the history log remains)."))return;S=build();selProd=null;save();go("dash")}
@@ -361,7 +373,7 @@ function pagePD(){const p=S.products.find(x=>x.id===selProd);if(!p){page="prd";r
  ${v.ops.map((o,i)=>{const R_=`${C}.opRows[${i}]`;return `<tr><td>${esc(o.desc)}</td><td>${esc(S.plants[pl].machines.find(x=>x.id===o.machineId)?.name||"Manual DL")}</td><td class="n">${S_(`fm(${R_}.heads,2)`)}</td><td class="n">${S_(`fm(${R_}.L,1)`)}</td>${["G","I","M","R","T"].map(k=>O(`fm(${R_}.${k},2)`)).join("")}${O(`fm(${R_}.rate,2)`,"tot")}${["nG","nI","nM","nR","nT"].map(k=>O(`fm(${R_}.${k},4)`)).join("")}${O(`fm(${R_}.N,4)`,"tot")}<td data-c="${("miniBar("+R_+")").replace(/"/g,"&quot;")}"></td></tr>`}).join("")}
  <tr class="tot"><td colspan="2">Total</td>${O(`fm(${C}.heads,2)`,"tot")}<td></td><td colspan="6"></td>${["cG","cI","cM","cR","cT"].map(k=>O(`fm(${C}.${k},4)`,"tot")).join("")}${O(`fm(${C}.conv,4)`,"tot")}<td></td></tr></table></div>
  <div class="card"><h2>3 · From cost to price · ${PN[pl]}</h2><table style="max-width:640px">
- ${[["Raw materials / components","mat"],["Conversion","conv"],["Subtotal","sub","tot"],["Scrap "+fp(S.plants[pl].params.scrap)+" on subtotal","scrap"],["JIT/JIS logistics","log"],["INDUSTRIAL COST","ic","tot"],["Mark-up ("+fp(num(S.plants[pl].params.profit)+num(S.plants[pl].params.ga)+num(S.plants[pl].params.produttivita)+num(S.plants[pl].params.imposte))+" of price)","markup"],["PRICE CALCULATED FROM BREAKDOWN","calc","tot"]].map(r=>`<tr class="${r[2]||""}"><td>${r[0]}</td>${O(`fm(${C}.${r[1]},4)+' €'`,r[2]||"")}</tr>`).join("")}
+ ${[["Raw materials / components","mat"],["Conversion","conv"],["Subtotal","sub","tot"],["Scrap "+fp(S.plants[pl].params.scrap)+" on subtotal","scrap"],["JIT/JIS logistics","log"],["INDUSTRIAL COST","ic","tot"],...(S.recovery?[["G&A allocated (full cost recovery)","gaA"]]:[]),["Mark-up ("+fp(num(S.plants[pl].params.profit)+(S.recovery?0:num(S.plants[pl].params.ga))+num(S.plants[pl].params.produttivita)+num(S.plants[pl].params.imposte))+" of price"+(S.recovery?", profit only":"")+")","markup"],["PRICE CALCULATED FROM BREAKDOWN","calc","tot"]].map(r=>`<tr class="${r[2]||""}"><td>${r[0]}</td>${O(`fm(${C}.${r[1]},4)+' €'`,r[2]||"")}</tr>`).join("")}
  <tr><td>Break-even price after G&A (IC ÷ (1 − G&A))</td>${O(`fm(${C}.beGA,4)+' €'`)}</tr><tr><td>Material share of calculated price</td>${O(`fp(${C}.matShare)`)}</tr></table></div>
  <div class="card"><h2>4 · Selling price sensitivity · ${PN[pl]}</h2><table style="max-width:760px"><tr><th>Change</th><th class="n">Price €</th><th class="n">Margin €</th><th class="n">Margin %</th><th class="n">After G&A %</th></tr>
  ${[-.1,-.05,0,.05,.1].map(d=>{const pr=`(S.products[${ix}].v.${pl}.price*${1+d})`;return `<tr><td>${d>0?"+":""}${d*100} %</td>${O(`${C}.hasPrice?fm(${pr},4):'—'`)}${O(`${C}.hasPrice?fm(${pr}-${C}.ic,4):'—'`)}${O(`${C}.hasPrice?fp((${pr}-${C}.ic)/${pr}):'—'`)}${O(`${C}.hasPrice?fp((${pr}*(1-S.plants.${pl}.params.ga)-${C}.ic)/${pr}):'—'`)}</tr>`}).join("")}</table></div>`;return h}
@@ -448,7 +460,18 @@ async function doImportBC(el){const f=el.files[0];if(!f)return;if(readonly()){al
   const p=S.plants[pl];p.items=g.items;p.dlBase=g.dl;p.params.burdenMode="split";p.params.maintMode="split";
   const B=burdenCalc(pl);out.push(PN[pl]+": "+g.items.length+" items, burden "+fm(B.t.BURDEN,0)+" €, DL base "+fm(g.dl,0)+" €, burden rate "+fp(B.burdenRate))}
  el.value="";save();alert("Imported from the Business Case ("+year+"):\n"+out.join("\n"));render()}
-function tngIC(al){const a=S.alignZ;S.alignZ=al;try{let ic=0,bur=0;for(const p of S.products){const c=pcalc(p,"TNG"),v=num(p.v.TNG.volume);ic+=v*c.ic;bur+=v*c.cT}const E=effP("TNG");return{ic,bur,rate:E.burden}}finally{S.alignZ=a}}
+function tngIC(al){const a=S.alignZ;S.alignZ=al;CAL={};try{let ic=0,bur=0;for(const p of S.products){const c=pcalc(p,"TNG"),v=num(p.v.TNG.volume);ic+=v*c.ic;bur+=v*c.cT}const E=effP("TNG");return{ic,bur,rate:E.burden}}finally{S.alignZ=a;CAL={}}}
+function recoveryRows(pl,st=S){const B=burdenCalc(pl,st);let bur=0,mnt=0,ga=0,dep=0;
+ for(const p of st.products){const v=p.v[pl];if(!v)continue;const c=pcalc(p,pl,st),vol=num(v.volume);bur+=vol*c.cT;mnt+=vol*c.cI;dep+=vol*c.cG;ga+=vol*(st.recovery?c.gaA:(num(v.price)>0?num(v.price)*num(st.plants[pl].params.ga):0))}
+ const av=derived(st.plants[pl].params).avail;let idle=0;for(const m of st.plants[pl].machines)if(!(guOf(m,pl,st)>0))idle+=num(m.qty)*num(m.price)*(1-num(m.resid))*av/(num(m.life)||1);
+ const rows=[["Burden",B.t.BURDEN,bur],["Maintenance",B.t.MAINT,mnt],["G&A",B.t.GA,ga],["Machine depreciation (used machines)",Math.max(0,B.dep-idle),dep]];
+ if(idle>0)rows.push(["Depreciation of idle machines (no product uses them)",idle,0]);return rows}
+function wRec(x,y){if(!(y>0))return null;const d=Math.abs(x/y-1);if(S.recovery)return d>.005?FW("o","Not fully recovered: "+fp(x/y)):null;return d>.3?FW("o","Recovered "+fp(x/y)+" of the cost"):d>.1?FW("y","Recovered "+fp(x/y)+" of the cost"):null}
+function recSwitch(){const on=!!S.recovery;
+ const chip=pl=>{const r=recoveryRows(pl).filter(x=>x[1]>0&&x[2]+0>=0).slice(0,4);return `<span style="margin-right:18px"><b style="color:var(--${pl==="TNG"?"tng":"zgz"})">${PN[pl]}</b>: ${r.map(x=>`${x[0].split(" ")[0]} <b>${fp(x[2]/x[1])}</b>`).join(" · ")}</span>`};
+ return `<div class="card" style="border:2px solid ${on?"#16a34a":"var(--line)"};${on?"background:#f0fdf4":""}"><div class="row"><label style="display:flex;gap:10px;align-items:center;font-weight:700;cursor:pointer"><input type="checkbox" style="width:auto;min-width:0;transform:scale(1.3)" ${on?"checked":""} onchange="setPath('recovery',this.checked);render()"> Full cost recovery: the products sold pay 100% of the fixed costs</label></div>
+ <p class="sub" style="margin:6px 0 0">${on?"<b>ON</b>: each fixed cost pool (burden, maintenance, G&A, machine depreciation) is charged to the products with one criterion and calibrated on the sold volumes, so that quota × volume summed over all products = 100% of the pool. Burden is spread on the direct labour of the products, maintenance on their depreciation, G&A on their industrial cost, depreciation on the hours the machines are really used (UR).":"<b>OFF</b>: rates come from the base costs of each Business Case; the pools may be recovered more or less than 100% (see the check below)."}</p>
+ <p class="sub" style="margin:4px 0 0">Recovery of the pools by the products sold: ${chip("TNG")}${chip("ZGZ")}</p></div>`}
 function alignSwitch(){const on=!!S.alignZ,o=tngIC(false),n=tngIC(true);
  return `<div class="card" style="border:2px solid ${on?"#f59e0b":"var(--line)"};${on?"background:#fffbeb":""}"><div class="row"><label style="display:flex;gap:10px;align-items:center;font-weight:700;cursor:pointer"><input type="checkbox" style="width:auto;min-width:0;transform:scale(1.3)" ${on?"checked":""} onchange="setPath('alignZ',this.checked);render()"> Compare on the same basis: move the Tangier overhead to the Zaragoza P&amp;L level</label>
  <select style="width:auto" onchange="setPath('alignBasis',this.value);render()" ${on?"":"disabled"}><option value="pool" ${S.alignBasis!=="rate"?"selected":""}>Same € overhead pool (Zaragoza items and classification)</option><option value="rate" ${S.alignBasis==="rate"?"selected":""}>Same burden rate % (Zaragoza rate on Tangier labour)</option></select></div>
@@ -494,6 +517,9 @@ function pageBur(){if(bpl==="CMP")return pageBurCmp();const pl=bpl,p=S.plants[pl
  ${kp("Burden recovered by the products",`fm(absorb('${pl}').bur,0)+' €'`,S_(`'vs pool '+fm(burdenCalc('${pl}').t.BURDEN,0)+' €'`),`wRatio(absorb('${pl}').bur,burdenCalc('${pl}').t.BURDEN,'Burden recovered vs pool')`)}
  ${kp("Depreciation absorbed",`fm(absorb('${pl}').dep,0)+' €'`,S_(`'vs machines '+fm(burdenCalc('${pl}').dep,0)+' €/year'`),`wRatio(absorb('${pl}').dep,burdenCalc('${pl}').dep,'Depreciation absorbed vs annual depreciation')`)}
  ${kp("Maintenance absorbed",`fm(absorb('${pl}').mnt,0)+' €'`,S_(`'vs items '+fm(burdenCalc('${pl}').t.MAINT,0)+' €'`),`wRatio(absorb('${pl}').mnt,burdenCalc('${pl}').t.MAINT,'Maintenance absorbed vs items')`)}</div>
+ <div class="card"><h2>Cost recovery check · ${PN[pl]}</h2><p class="sub">Sum over all products of (cost quota per piece × annual volume) compared with the annual cost of each pool. With “Full cost recovery” on it must be 100%.</p>
+ <table style="max-width:860px"><tr><th>Cost pool</th><th class="n">Annual cost €</th><th class="n">Recovered by the products €</th><th class="n">Recovered %</th></tr>
+ ${[0,1,2,3,4].map(i=>`<tr><td>${recoveryRows(pl)[i]?esc(recoveryRows(pl)[i][0]):""}</td>${recoveryRows(pl)[i]?O(`fm(recoveryRows('${pl}')[${i}][1],0)`)+O(`fm(recoveryRows('${pl}')[${i}][2],0)`)+O(`fp(recoveryRows('${pl}')[${i}][2]/recoveryRows('${pl}')[${i}][1])`,"tot",`wRec(recoveryRows('${pl}')[${i}][2],recoveryRows('${pl}')[${i}][1])`):"<td></td><td></td><td></td>"}</tr>`).join("")}</table></div>
  <div class="card"><h2>Settings · ${PN[pl]}</h2><div class="grid">
  <div class="f"><label>Direct labour base (annual cost, €)</label>${inN(pre+"dlBase",p.dlBase)}<small>Business case 2030: direct personnel cost</small></div>
  <div class="f"><label>Burden rate used</label><select onchange="setPath('${pre}params.burdenMode',this.value);render()"><option value="manual" ${P.burdenMode!=="split"?"selected":""}>Manual (Basic inputs)</option><option value="split" ${P.burdenMode==="split"?"selected":""}>Computed from the split below</option></select></div>
@@ -531,7 +557,7 @@ async function reportPDF(full,onlyId){
   y=tbl({startY:y,head:[["Parameter","Tangier","Zaragoza"]],body:[
    ar("Available machine hours / year",k=>fm(D[k].avail,0)),ar("Net presence hours / month",k=>fm(D[k].net,1)),ar("Gross annual salary, direct operator (EUR)",k=>fm(PP[k].grossYear,0)),
    ar("Employer social charges",k=>pp(PP[k].social)),ar("Direct labour hourly cost (EUR/h)",k=>fm(D[k].mod,2)),ar("Electricity (EUR/kWh)",k=>fm(PP[k].energyPrice,4)),
-   ar("Overhead basis",k=>k==="TNG"&&S.alignZ?"Aligned to Zaragoza P&L ("+(S.alignBasis==="rate"?"same rate":"same EUR pool")+")":"Own Business Case"),ar("Burden rate (indirect / DL)",k=>pp(PP[k].burden)),ar("Maintenance (% of depreciation)",k=>pp(PP[k].maintPct)),ar("Efficiency / OEE",k=>pp(PP[k].oee)),ar("Scrap",k=>pp(PP[k].scrap)),ar("Profit + G&A (on price)",k=>pp(num(PP[k].profit)+num(PP[k].ga)))],
+   ar("Cost recovery",k=>S.recovery?"Full (100% of pools)":"Base costs of each BC"),ar("Overhead basis",k=>k==="TNG"&&S.alignZ?"Aligned to Zaragoza P&L ("+(S.alignBasis==="rate"?"same rate":"same EUR pool")+")":"Own Business Case"),ar("Burden rate (indirect / DL)",k=>pp(PP[k].burden)),ar("Maintenance (% of depreciation)",k=>pp(PP[k].maintPct)),ar("Efficiency / OEE",k=>pp(PP[k].oee)),ar("Scrap",k=>pp(PP[k].scrap)),ar("Profit + G&A (on price)",k=>pp(num(PP[k].profit)+num(PP[k].ga)))],
    columnStyles:{0:{cellWidth:260},1:{halign:"right"},2:{halign:"right"}},tableWidth:520})+14;
   {const BT={TNG:burdenCalc("TNG"),ZGZ:burdenCalc("ZGZ")},EE={TNG:effP("TNG"),ZGZ:effP("ZGZ")};if(y>H-200){doc.addPage();y=60}
    y=h2("Burden split and hourly rates",y);
@@ -579,8 +605,8 @@ const readonly=()=>ME&&ME.ruolo==="viewer";
 async function call(fn,...args){let r;try{r=await fetch(API,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify({fn,args,token:TOKEN})})}catch(e){throw new Error("Server unreachable")}
  const j=await r.json();if(j.status===401&&fn!=="apiLogin"){logout(true);throw new Error("Session expired")}if(j.error)throw new Error(j.error);return j.data}
 function setStatus(t,bad){const e=document.getElementById("stat");if(e){e.textContent=t;e.className="badge "+(bad?"b-es":"b-bc")}}
-function docsOf(st){const d={meta:{name:st.name||"",ids:st.products.map(p=>p.id),alignZ:!!st.alignZ,alignBasis:st.alignBasis||"pool"},notes:st.notes||{},guide:st.guide||{},materials:st.materials};if(st.check)d.check=st.check;for(const k of PL)d["plant:"+k]=st.plants[k];for(const p of st.products)d["prod:"+p.id]=p;return d}
-function applyDoc(k,val){if(k==="meta"){S.name=val.name;S.alignZ=!!val.alignZ;S.alignBasis=val.alignBasis||"pool";S._ids=val.ids;S.products.sort((a,b)=>S._ids.indexOf(a.id)-S._ids.indexOf(b.id))}
+function docsOf(st){const d={meta:{name:st.name||"",ids:st.products.map(p=>p.id),alignZ:!!st.alignZ,alignBasis:st.alignBasis||"pool",recovery:!!st.recovery},notes:st.notes||{},guide:st.guide||{},materials:st.materials};if(st.check)d.check=st.check;for(const k of PL)d["plant:"+k]=st.plants[k];for(const p of st.products)d["prod:"+p.id]=p;return d}
+function applyDoc(k,val){if(k==="meta"){S.name=val.name;S.alignZ=!!val.alignZ;S.alignBasis=val.alignBasis||"pool";S.recovery=!!val.recovery;S._ids=val.ids;S.products.sort((a,b)=>S._ids.indexOf(a.id)-S._ids.indexOf(b.id))}
  else if(k==="notes")S.notes=val;else if(k==="guide")S.guide=val;else if(k==="check")S.check=val;else if(k==="materials")S.materials=val;
  else if(k.startsWith("plant:"))S.plants[k.slice(6)]=val;
  else if(k.startsWith("prod:")){const i=S.products.findIndex(p=>p.id===val.id);if(i>=0)S.products[i]=val;else S.products.push(val);if(S._ids)S.products.sort((a,b)=>S._ids.indexOf(a.id)-S._ids.indexOf(b.id))}}
