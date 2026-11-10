@@ -496,7 +496,7 @@ function brgText(d,all){const T=d.TNG,Z=d.ZGZ,tot=Z.ic+Z.gaA-(T.ic+T.gaA),u=all?
  lines.push(`Direct labour ${u}: Tangier ${f(T.cR)}, Zaragoza ${f(Z.cR)}. Of the difference, <b>${f(wage)}</b> is the <b>wage level</b> (${fm(Z.mod,2)} €/h in Zaragoza against ${fm(T.mod,2)} €/h in Tangier, on the same hours) and <b>${f(crew)}</b> is <b>operators / time</b> (${all?fm(Z.hours/1e3,1)+" k h against "+fm(T.hours/1e3,1)+" k h":fm(Z.hours*60,1)+" min against "+fm(T.hours*60,1)+" min"} of direct labour).`);
  return lines}
 function pageBrg(){const d=brgData(bProd),all=bProd==="ALL",T=d.TNG,Z=d.ZGZ,u=all?"€ / year":"€ / piece",fv=x=>all?fm(Math.abs(x)<0.5?0:x,0):fm(Math.abs(x)<0.0005?0:x,3);
- const gap=(Z.ic+Z.gaA)-(T.ic+T.gaA),rows=BCOMP.filter(([k])=>k!=="gaA"||S.recovery),mx=1e-9;
+ const gap=(Z.ic+Z.gaA)-(T.ic+T.gaA),rows=BCOMP.filter(([k])=>k!=="gaA"||S.recovery);let mx=1e-9;
  const wage=(Z.mod-T.mod)*T.hours,crew=Z.mod*(Z.hours-T.hours);mx=Math.max(...rows.map(([k])=>Math.abs(Z[k]-T[k])),Math.abs(wage),Math.abs(crew),1e-9);
  const barr=x=>`<div style="display:flex;align-items:center;height:14px"><div style="width:50%;display:flex;justify-content:flex-end">${x<0?`<i style="display:block;height:12px;width:${Math.abs(x)/mx*100}%;background:#16a34a;border-radius:3px"></i>`:""}</div><div style="width:50%">${x>0?`<i style="display:block;height:12px;width:${x/mx*100}%;background:#dc2626;border-radius:3px"></i>`:""}</div></div>`;
  const tr=(l,t,z,ind,b)=>`<tr${b?' class="tot"':""}><td style="padding-left:${ind?28:9}px">${l}</td><td class="n t">${ind?"":fv(t)}</td><td class="n z">${ind?"":fv(z)}</td><td class="n ${z-t>0?"neg":"pos"}">${z-t>=0?"+":""}${fv(z-t)}</td><td class="n">${gap?fp((z-t)/gap):"—"}</td><td style="min-width:150px">${barr(z-t)}</td></tr>`;
