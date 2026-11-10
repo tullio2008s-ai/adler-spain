@@ -243,6 +243,7 @@ function stack(c){const t=c.calc||1;const seg=[["Materials",c.mat,COL.mat],["Dep
 const stackOf=(ix,pl)=>`stack(pcalc(S.products[${ix}],'${pl}'))`;
 const tabs=()=>`<div class="tabs">${[["TNG","Tangier","T"],["ZGZ","Zaragoza","Z"],["CMP","Comparison","C"]].map(x=>`<button class="${tab===x[0]?"on ":""}${x[2]}" onclick="tab='${x[0]}';render()">${x[1]}</button>`).join("")}</div>`;
 
+function pcell(p,pl,k){const w=wPrice(p,pl),v=p.v[pl];return `<td class="n ${k}${w?" w"+w.l:""}"${w?` title="${w.m}"`:""}><b>${num(v.price)>0?fm(v.price,3):"—"}</b></td>`}
 function pageDash(){const P=S.products;let comp={TNG:0,ZGZ:0},mar={TNG:0,ZGZ:0},rev={TNG:0,ZGZ:0};
  const R=P.map(p=>{const r={};for(const pl of PL){r[pl]=pcalc(p,pl);if(r[pl].complete)comp[pl]++;const v=p.v[pl];rev[pl]+=num(v.price)*num(v.volume);if(r[pl].hasPrice)mar[pl]+=r[pl].margin*num(v.volume)}return r});
  const maxv=Math.max(...R.map(r=>Math.max(r.TNG.ic,r.ZGZ.ic)),.01);
@@ -251,9 +252,9 @@ function pageDash(){const P=S.products;let comp={TNG:0,ZGZ:0},mar={TNG:0,ZGZ:0},
  <div><span>Annual margin · Tangier</span><b class="${mar.TNG<0?"neg":""}">${fm(mar.TNG/1e6,2)} M€</b><small>${rev.TNG?fp(mar.TNG/rev.TNG)+" of revenue":"no price entered"}</small></div>
  <div><span>Annual margin · Zaragoza</span><b class="${mar.ZGZ<0?"neg":""}">${fm(mar.ZGZ/1e6,2)} M€</b><small>${rev.ZGZ?fp(mar.ZGZ/rev.ZGZ)+" of revenue":"no price entered"}</small></div></div>
  <div class="card"><h2>Industrial cost by code: Tangier vs Zaragoza</h2><p class="sub">Where a version has no processes entered, the cost includes materials only and is not comparable. Click “Open” for the detailed sheet.</p>
- <table><tr><th>Product</th><th>Code</th><th class="n">Volume</th><th class="n t">Ind. cost Tangier</th><th class="n z">Ind. cost Zaragoza</th><th class="n">Δ Zaragoza − Tangier</th><th style="width:210px">Ind. cost</th><th class="n t">Margin % Tangier</th><th class="n z">Margin % Zaragoza</th><th></th></tr>
+ <table><tr><th>Product</th><th>Code</th><th class="n">Volume</th><th class="n t">Selling price Tangier</th><th class="n z">Selling price Zaragoza</th><th class="n t">Ind. cost Tangier</th><th class="n z">Ind. cost Zaragoza</th><th class="n">Δ Zaragoza − Tangier</th><th style="width:210px">Ind. cost</th><th class="n t">Margin % Tangier</th><th class="n z">Margin % Zaragoza</th><th></th></tr>
  ${P.map((p,i)=>{const t=R[i].TNG,z=R[i].ZGZ,ok=t.complete&&z.complete;return `<tr><td><b>${p.desc}</b></td><td>${p.code}</td><td class="n">${fm(p.v.TNG.volume,0)}</td>
- <td class="n t${t.complete?"":" wy"}">${fm(t.ic,3)} ${t.complete?"":'<span class="badge b-es">materials only</span>'}</td><td class="n z${z.complete?"":" wy"}">${fm(z.ic,3)} ${z.complete?"":'<span class="badge b-es">materials only</span>'}</td><td class="n ${ok?(z.ic-t.ic>0?"neg":"pos"):""}">${ok?sg(z.ic-t.ic):"—"}</td>
+ ${pcell(p,"TNG","t")}${pcell(p,"ZGZ","z")}<td class="n t${t.complete?"":" wy"}">${fm(t.ic,3)} ${t.complete?"":'<span class="badge b-es">materials only</span>'}</td><td class="n z${z.complete?"":" wy"}">${fm(z.ic,3)} ${z.complete?"":'<span class="badge b-es">materials only</span>'}</td><td class="n ${ok?(z.ic-t.ic>0?"neg":"pos"):""}">${ok?sg(z.ic-t.ic):"—"}</td>
  <td><div class="bar"><i style="width:${t.ic/maxv*100}%;background:#c2410c"></i></div><div class="bar"><i style="width:${z.ic/maxv*100}%;background:#1d4ed8"></i></div></td>
  <td class="n t ${t.margin<0?"neg wo":""}${!t.hasPrice?" wy":""}">${fp(t.marginPct)}</td><td class="n z ${z.margin<0?"neg wo":""}${!z.hasPrice?" wy":""}">${fp(z.marginPct)}</td><td><button class="btn sec" onclick="openProd('${p.id}','CMP')">Open</button></td></tr>`}).join("")}</table>
  <div class="row"><button class="btn sec" onclick="exportCSV()">⬇ Export table (CSV)</button><button class="btn sec" data-ok="1" onclick="reportPDF(false)">⬇ PDF summary report</button><button class="btn sec" data-ok="1" onclick="reportPDF(true)">⬇ PDF full report</button></div></div>`}
@@ -503,9 +504,9 @@ async function reportPDF(full,onlyId){
   y=h2("Products - industrial cost, price and margin (EUR/pc)",y);
   let rev={TNG:0,ZGZ:0},mar={TNG:0,ZGZ:0};
   const body=prods.map((p,i)=>{const t=C[i].TNG,z=C[i].ZGZ;for(const k of PL){const c=C[i][k],v=p.v[k];rev[k]+=num(v.price)*num(v.volume);if(c.hasPrice)mar[k]+=c.margin*num(v.volume)}
-   return [p.code,p.desc,fm(p.v.TNG.volume,0),pf(t.ic)+(t.complete?"":"*"),pf(z.ic)+(z.complete?"":"*"),(t.complete&&z.complete)?sg(z.ic-t.ic):"-",t.hasPrice?pf(p.v.TNG.price):"-",z.hasPrice?pf(p.v.ZGZ.price):"-",pp(t.marginPct),pp(z.marginPct)]});
+   return [p.code,p.desc,fm(p.v.TNG.volume,0),t.hasPrice?pf(p.v.TNG.price):"-",z.hasPrice?pf(p.v.ZGZ.price):"-",pf(t.ic)+(t.complete?"":"*"),pf(z.ic)+(z.complete?"":"*"),(t.complete&&z.complete)?sg(z.ic-t.ic):"-",pp(t.marginPct),pp(z.marginPct)]});
   body.push([{content:"Annual revenue / margin on priced products (EUR)",colSpan:3,styles:{fontStyle:"bold"}},{content:"Tangier: "+fm(rev.TNG,0)+" / "+fm(mar.TNG,0),colSpan:3,styles:{fontStyle:"bold",textColor:TNGc}},{content:"Zaragoza: "+fm(rev.ZGZ,0)+" / "+fm(mar.ZGZ,0),colSpan:4,styles:{fontStyle:"bold",textColor:ZGZc}}]);
-  y=tbl({startY:y,head:[["Code","Description","Volume","Ind. cost T","Ind. cost Z","Diff Z-T","Price T","Price Z","Margin T","Margin Z"]],body,
+  y=tbl({startY:y,head:[["Code","Description","Volume","Price T","Price Z","Ind. cost T","Ind. cost Z","Diff Z-T","Margin T","Margin Z"]],body,
    columnStyles:{2:{halign:"right"},3:{halign:"right"},4:{halign:"right"},5:{halign:"right"},6:{halign:"right"},7:{halign:"right"},8:{halign:"right"},9:{halign:"right"}}})+6;
   doc.setFontSize(7.5).setTextColor(90).text("* materials only: no processes entered for that version (not comparable).  T = Tangier, Z = Zaragoza.  Margin = selling price - industrial cost, as % of price.",M,y+6);
   {const ck=allChecks();if(ck.length){doc.addPage();y=60;y=h2("Data checks ("+ck.filter(x=>x.l==="o").length+" probable anomalies, "+ck.filter(x=>x.l!=="o").length+" to verify)",y);y=tbl({startY:y,head:[["Level","Plant","Where","Message"]],body:ck.map(x=>[x.l==="o"?"ORANGE":"yellow",x.pl?PN[x.pl]:"All",x.area,x.msg]),columnStyles:{0:{cellWidth:50},1:{cellWidth:55},2:{cellWidth:230}},didParseCell:d=>{if(d.section==="body"&&d.column.index===0)d.cell.styles.fillColor=d.cell.raw==="ORANGE"?[253,186,116]:[254,240,138]}})+10}}
