@@ -342,13 +342,16 @@ function mcCard(ix,pl){const p=S.products[ix];
  return s}
 function mcWarn(ix){const p=S.products[ix];if(!p.mc||!p.mc.ref||!p.mc.ref.total)return null;const d=Math.abs(mcCalc(p.mc).total/p.mc.ref.total-1);return d>.0005?FW("y","Differs from the imported file ("+fm(p.mc.ref.total,4)+" €): the card was edited"):null}
 /* ---------- import of the material BOM Excel ---------- */
-let MCIMP=null;
-async function mcLoadFile(el){const f=el.files[0];if(!f)return;if(readonly()){alert("Read-only account");return}
- let wb;try{wb=XLSX.read(await f.arrayBuffer(),{type:"array"})}catch(e){alert("Cannot read this Excel file");el.value="";return}
+let MCIMP=null,MCMSG="";
+async function mcLoadFile(el){const f=el.files&&el.files[0];if(!f)return;if(readonly()){alert("Read-only account");return}
+ MCIMP=null;MCMSG="Reading “"+f.name+"”…";render(true);
+ try{await mcLoadFile0(f)}catch(e){MCIMP=null;MCMSG="⚠ Could not process “"+f.name+"”: "+(e&&e.message?e.message:e);render(true);alert(MCMSG)}}
+async function mcLoadFile0(f){
+ let wb;try{wb=XLSX.read(await f.arrayBuffer(),{type:"array"})}catch(e){MCMSG="⚠ “"+f.name+"” cannot be read as an Excel file ("+(e&&e.message||e)+")";render(true);alert(MCMSG);return}
  const grid=n=>wb.Sheets[n]?XLSX.utils.sheet_to_json(wb.Sheets[n],{header:1,defval:null,range:0,raw:true}):null,bd=grid("BOM detail"),sm=grid("Summary"),inp=grid("Inputs");
- if(!bd||!sm){alert("Sheets “Summary” and “BOM detail” not found: use the CX735 Material BOM file.");el.value="";return}
+ if(!bd||!sm){MCMSG="⚠ “"+f.name+"”: sheets “Summary” and “BOM detail” not found (sheets in the file: "+wb.SheetNames.join(", ")+"). Use the CX735 Material BOM file.";render(true);alert(MCMSG);return}
  const hb=bd.findIndex(r=>r&&r[0]==="#"&&r[1]==="Part"),hs=sm.findIndex(r=>r&&r[0]==="#"&&String(r[1]).startsWith("Part description"));
- if(hb<0||hs<0){alert("Unexpected layout of the file");el.value="";return}
+ if(hb<0||hs<0){MCMSG="⚠ “"+f.name+"”: unexpected layout (header rows of Summary / BOM detail not found).";render(true);alert(MCMSG);return}
  const parts=[],byNo={};
  for(let i=hs+1;i<sm.length;i++){const r=sm[i];if(!r||!r[0]||String(r[1]).toUpperCase()==="TOTAL")continue;const x={no:String(r[0]),desc:String(r[1]||""),pn:String(r[2]||""),vol:num(r[3]),sp:num(r[4]),calc:String(r[5]||""),fileTotal:num(r[10]),legacy:r[15]==null?null:num(r[15]),lines:[]};parts.push(x);byNo[x.no]=x}
  for(let i=hb+1;i<bd.length;i++){const r=bd[i];if(!r||r[2]!=="Material")continue;const x=byNo[String(r[0])];if(!x)continue;
@@ -357,7 +360,9 @@ async function mcLoadFile(el){const f=el.files[0];if(!f)return;if(readonly()){al
  const par=Object.assign({},mpOf(S));if(inp)for(const r of inp){if(!r||typeof r[1]!=="string")continue;const k=r[1].toLowerCase(),v=r[3];if(typeof v!=="number")continue;
   if(k.startsWith("material scrap"))par.scrap=v;else if(k.startsWith("material overhead"))par.moh=v;else if(k.startsWith("eur / mad"))par.eurMad=v;else if(k.startsWith("gbp per eur"))par.gbpPerEur=v}
  const taken=new Set();for(const x of parts){x.pid=mcGuess(x,taken);if(x.pid)taken.add(x.pid)}
- MCIMP={file:f.name,parts:parts.filter(x=>x.lines.length),params:par};el.value="";render()}
+ MCIMP={file:f.name,parts:parts.filter(x=>x.lines.length),params:par};
+ if(!MCIMP.parts.length){MCIMP=null;MCMSG="⚠ “"+f.name+"”: no material lines found in “BOM detail”.";render(true);alert(MCMSG);return}
+ MCMSG="✓ “"+f.name+"”: "+MCIMP.parts.length+" parts and "+MCIMP.parts.reduce((a,x)=>a+x.lines.length,0)+" material lines read. Check the preview below and press “Import the assigned cost cards”.";render();setTimeout(()=>{const e=document.getElementById("mcprev");if(e)e.scrollIntoView({behavior:"smooth",block:"start"})},80)}
 const pnValid=pn=>!!String(pn||"").trim()&&!/n\/a|no p\/n/i.test(pn);
 function ccAdopt(p,pn){if(!pnValid(pn)||String(p.code)===String(pn))return false;const prev=(p.cc&&!p.cc.ok)?p.cc.prev:p.code;p.code=pn;p.cc={prev,ok:false};return true}
 const ccPending=()=>S.products.filter(p=>p.cc&&!p.cc.ok);
@@ -375,7 +380,7 @@ function mcApply(){if(!MCIMP)return;const ids=MCIMP.parts.map(x=>x.pid).filter(B
  for(const x of MCIMP.parts){if(!x.pid)continue;const p=S.products.find(y=>y.id===x.pid);if(ccAdopt(p,x.pn))nCode++;p.mc={on:true,lines:JSON.parse(JSON.stringify(x.lines)),ref:{file:MCIMP.file,no:x.no,pn:x.pn,desc:x.desc,vol:x.vol,sp:x.sp,calc:x.calc,total:x.fileTotal,legacy:x.legacy}}}
  {const cur=mpOf(S);S.matp=Object.assign(MATP0(),cur,{scrap:MCIMP.params.scrap,moh:MCIMP.params.moh,eurMad:MCIMP.params.eurMad,gbpPerEur:MCIMP.params.gbpPerEur})}MCIMP=null;CAL={};save();render()}
 function mcPreview(){if(!MCIMP)return"";const opts=sel=>`<option value="">— do not import —</option>`+S.products.map(p=>`<option value="${p.id}" ${p.id===sel?"selected":""}>${esc(p.code)} · ${esc(p.desc)}</option>`).join("");
- return `<div class="card" style="border:2px solid var(--acc)"><h2>Import preview · ${esc(MCIMP.file)}</h2><p class="sub">Check that each part of the file goes to the right product. “Total (recomputed)” is calculated here from the lines with the parameters of the file and must equal the total of the file. Prices and volumes of the file are NOT imported (they are shown in the summary for comparison only).</p>
+ return `<div id="mcprev" class="card" style="border:2px solid var(--acc)"><h2>Import preview · ${esc(MCIMP.file)}</h2><p class="sub">Check that each part of the file goes to the right product. “Total (recomputed)” is calculated here from the lines with the parameters of the file and must equal the total of the file. Prices and volumes of the file are NOT imported (they are shown in the summary for comparison only).</p>
  <table class="tw"><tr><th>#</th><th>Part (file)</th><th>Part number (file)</th><th>Lines</th><th class="n">Total file €/pc</th><th class="n">Total recomputed €/pc</th><th>Assign to product</th><th>Product code</th></tr>
  ${MCIMP.parts.map((x,i)=>{const t=mcImpTotal(x),ok=Math.abs(t-x.fileTotal)<0.0006,p=S.products.find(y=>y.id===x.pid),cm=p&&pnValid(x.pn)&&String(p.code)!==String(x.pn);
   return `<tr><td>${x.no}</td><td><b>${esc(x.desc)}</b></td><td>${esc(x.pn)}</td><td class="n">${x.lines.length}</td><td class="n">${fm(x.fileTotal,4)}</td><td class="n ${ok?"":"wo"}">${fm(t,4)} ${ok?"✓":"≠"}</td>
@@ -451,13 +456,14 @@ function pageMatLegacy(){let h=`<div class="card"><h2>Previous material master (
 
 function mcEst(p){if(!mcOn(p))return"—";const r=mcCalc(p.mc).rows;let e=0,c=0,t=0;p.mc.lines.forEach((l,i)=>{t+=r[i].cost;if(l.basis==="Estimate"){e++;c+=r[i].cost}});return e?e+" of "+p.mc.lines.length+" · "+fp(c/(t||1)):"none"}
 function mcAnnual(){return S.products.reduce((a,p)=>a+matInfo(p).total*num(p.v.ZGZ.volume),0)/1e3}
-function pageMat(){const M=mpOf(S),P=S.products;let h=mcPreview();
+function pageMat(){const M=mpOf(S),P=S.products;let h="";
  {const pend=ccPending(),diff=S.products.filter(p=>p.mc&&p.mc.ref&&pnValid(p.mc.ref.pn)&&String(p.mc.ref.pn)!==String(p.code));
   if(pend.length)h+=`<div class="card" style="border:2px solid #dc2626;background:#fef2f2"><div class="row"><b style="color:#b91c1c">${pend.length} product code(s) taken from the BOM table are TO CONFIRM</b><span style="flex:1"></span><button class="btn" data-ok="1" onclick="ccAll()">Confirm all</button></div><p class="sub" style="margin:6px 0 0">${pend.map(p=>esc(p.cc.prev)+" → <b>"+esc(p.code)+"</b>").join(" · ")}</p></div>`;
   if(diff.length)h+=`<div class="card" style="border:2px solid #dc2626"><div class="row"><b style="color:#b91c1c">${diff.length} product code(s) differ from the BOM table, which is the reference</b><span style="flex:1"></span><button class="btn" onclick="ccFromRefs()">Use the codes of the table</button></div><p class="sub" style="margin:6px 0 0">${diff.map(p=>esc(p.code)+" → "+esc(p.mc.ref.pn)).join(" · ")}</p></div>`}
  h+=`<div class="card"><h2>Material cost build-up (CX735 BOM)</h2><p class="sub">Load the “CX735 Material BOM by part” Excel: every product gets a <b>cost card</b> with each material line (supplier, price basis, sheet size, quantity, purchase price, purchasing cost), plus scrap and overhead. The file is read in your browser; only the resulting data go to the shared database. Cards are editable line by line in the <b>product sheet</b>.</p>
- <div class="row"><input type="file" accept=".xlsx,.xlsm" onchange="mcLoadFile(this)" style="width:auto"></div>
+ <div class="row"><input type="file" accept=".xlsx,.xlsm" onchange="mcLoadFile(this)" style="width:auto"></div>${MCMSG?`<p class="sub" style="margin:8px 0 0;font-weight:700;color:${MCMSG.startsWith("⚠")?"#b91c1c":"#15803d"}">${esc(MCMSG)}</p>`:""}
  <p class="sub" style="margin-top:10px">Coefficients in use: material scrap <b>${mcPctTxt(M,"scrap")}</b> · material overhead <b>${mcPctTxt(M,"moh")}</b> · plant scrap on conversion only <b>${M.scrapOnConv?"yes":"no"}</b>. They are set (and can be switched on or off) in <button class="btn sec" style="padding:3px 10px" onclick="go('inp')">Basic inputs</button></p></div>`;
+ h+=mcPreview();
  h+=`<div class="card"><h2>Material cost by product</h2><p class="sub">€ per piece, the same for all plants. “Previous” is the single value used before the cost cards (Gate 3 MEK). Volumes and prices are those of the console (Zaragoza version).</p>
  <table class="tw"><tr><th>Product</th><th>Code</th><th>Cost card</th><th class="n">Material lines</th><th class="n">Scrap</th><th class="n">Overhead</th><th class="n">Total €/pc</th><th class="n">Previous €/pc</th><th class="n">Δ €/pc</th><th class="n">Δ %</th><th class="n">Volume</th><th class="n">Annual material k€</th><th class="n">% of price</th><th>Estimated prices</th><th></th></tr>
  ${P.map((p,i)=>{const mi=`matInfo(S.products[${i}])`;return `<tr><td><b>${esc(p.desc)}</b></td><td class="nw${p.cc&&!p.cc.ok?" wr":""}">${esc(p.code)}${p.cc&&!p.cc.ok?"<br>"+ccBadge(p):""}</td><td>${mcOn(p)?"✔ "+p.mc.lines.length+" lines":"— simple"}</td>${O(`fm(${mi}.net,3)`)}${O(`fm(${mi}.scrap,3)`)}${O(`fm(${mi}.moh,3)`)}${O(`fm(${mi}.total,3)`,"tot")}${O(`fm(${mi}.legacy,3)`)}${O(`sg(${mi}.total-${mi}.legacy)`)}${O(`fp(${mi}.legacy?${mi}.total/${mi}.legacy-1:NaN)`)}<td class="n">${fm(p.v.ZGZ.volume,0)}</td>${O(`fm(${mi}.total*S.products[${i}].v.ZGZ.volume/1e3,0)`)}${O(`fp(S.products[${i}].v.ZGZ.price>0?${mi}.total/S.products[${i}].v.ZGZ.price:NaN)`)}${O(`mcEst(S.products[${i}])`)}<td><button class="btn sec" onclick="openProd('${p.id}','CMP')">Open</button></td></tr>`}).join("")}
