@@ -531,10 +531,11 @@ function pageProdPL(){const M=plProdModel(),A=PL.includes("TNA");
 function pagePL(){const A=PL.includes("TNA"),M=plView==="plants"?plModel():null,o=M?M.D:plModel().D;
  const sel=plView==="plants"?`<select style="width:auto;max-width:360px" onchange="plProd=this.value;render()"><option value="ALL" ${plProd==="ALL"?"selected":""}>All products (annual, sold volumes)</option>${S.products.map(p=>`<option value="${p.id}" ${plProd===p.id?"selected":""}>${esc(p.code)} · ${esc(p.desc)}</option>`).join("")}</select>`:"";
  const exNote=(!plAll&&o.TNG.ex)?`<p class="sub" style="margin:6px 0 0;color:#b45309">⚠ Products without a selling price are <b>excluded</b> (${esc(o.TNG.exNames.join(", "))}): ${PL.map(pl=>PN[pl]+" "+fm(o[pl].exIc/1e3,0)+" k€").join(" · ")} of industrial cost not in this P&L. Tick “include products without selling price” to see their cost with zero revenue.</p>`:"";
- const tabs=`<div class="tabs" style="margin:0"><button class="${plView==="plants"?"on C":""}" onclick="plView='plants';render()">Plants side by side</button><button class="${plView==="products"?"on C":""}" onclick="plView='products';render()">By product</button></div>
-  <select style="width:auto" onchange="plUnit=this.value;render()"><option value="year" ${plUnit==="year"?"selected":""}>k€ per year</option><option value="pc" ${plUnit==="pc"?"selected":""}>€ per piece</option></select>`;
+ const tabs=`<div class="tabs" style="margin:0"><button class="${plView==="plants"?"on C":""}" onclick="plView='plants';render()">Plants side by side</button><button class="${plView==="products"?"on C":""}" onclick="plView='products';render()">By product</button><button class="${plView==="bc"?"on C":""}" onclick="plView='bc';render()">Business Case format</button></div>
+  <select style="width:auto${plView==="bc"?";display:none":""}" onchange="plUnit=this.value;render()"><option value="year" ${plUnit==="year"?"selected":""}>k€ per year</option><option value="pc" ${plUnit==="pc"?"selected":""}>€ per piece</option></select>`;
  const head=`<div class="row" style="gap:12px"><h2 style="margin:0">P&amp;L comparison</h2>${tabs}<span style="flex:1"></span>${sel}<label style="display:flex;gap:6px;align-items:center;font-size:12.5px"><input type="checkbox" style="width:auto;min-width:0" ${plAll?"checked":""} onchange="plAll=this.checked;render()"> include products without selling price</label></div>`;
  const btns=`<div class="row"><button class="btn sec" data-ok="1" onclick="plCSV()">⬇ Export table (CSV)</button><button class="btn sec" data-ok="1" onclick="plPDF()">⬇ PDF</button></div>`;
+ if(plView==="bc")return `<div class="card">${head}<p class="sub">Same layout as the Business Case P&amp;L: Tangier on top, then Zaragoza, then the automated scenario. Amounts in EUR for a steady-state year (sold volumes); the italic red rows are % of net sales. The two switches above define the cost basis.</p>${exNote}${pageBC()}</div>`;
  if(plView==="products")return `<div class="card">${head}<p class="sub">One row per product code, plants side by side${A?" (the third block is the Zaragoza plant with the automatic line)":""}. Revenue = selling price × annual volume. The two switches above define the cost basis.</p>${exNote}${pageProdPL()}${btns}</div>`;
  const th=PL.map(pl=>`<th class="n ${PCLS[pl]}" colspan="2" style="text-align:center">${PN[pl]}</th>`).join("")+M.deltas.map(d=>`<th class="n" colspan="2" style="text-align:center;border-left:2px solid var(--line)">Δ ${d[2]}</th>`).join("");
  const th2=PL.map(pl=>`<th class="n ${PCLS[pl]}">${plUnit==="pc"?"€/pc":"k€"}</th><th class="n">% rev.</th>`).join("")+M.deltas.map(()=>`<th class="n" style="border-left:2px solid var(--line)">Δ ${plUnit==="pc"?"€/pc":"k€"}</th><th class="n">Δ pp</th>`).join("");
@@ -559,9 +560,9 @@ function plSheet(){ /* matrix of the current view: {title, head, num, fmt} */
  const rows=M.rows.map(r=>{const x=[r.label];for(const pl of PL)x.push(r.v[pl]/plDiv(r.kind),isFinite(r.pct[pl])?r.pct[pl]*100:"");
   for(const [a,b] of M.deltas)x.push((r.v[a]-r.v[b])/plDiv(r.kind),isFinite(r.pct[a])?(r.pct[a]-r.pct[b])*100:"");return x});
  return{head,rows,kind:"plants",M}}
-function plCSV(){const S0=plSheet(),rows=[S0.head].concat(S0.rows.map(r=>r.map(x=>typeof x==="number"?(isFinite(x)?Math.round(x*1e4)/1e4:""):x)));
+function plCSV(){if(plView==="bc")return bcCSV();const S0=plSheet(),rows=[S0.head].concat(S0.rows.map(r=>r.map(x=>typeof x==="number"?(isFinite(x)?Math.round(x*1e4)/1e4:""):x)));
  const a=document.createElement("a");a.href=URL.createObjectURL(new Blob(["﻿"+rows.map(r=>r.map(x=>`"${String(x??"").replace(/"/g,'""')}"`).join(";")).join("\n")],{type:"text/csv"}));a.download=plView==="products"?"PL_by_product.csv":"PL_comparison.csv";a.click()}
-async function plPDF(){if(!window.jspdf){alert("PDF library not loaded");return}
+async function plPDF(){if(plView==="bc")return bcPDF();if(!window.jspdf){alert("PDF library not loaded");return}
  const S0=plSheet(),doc=new window.jspdf.jsPDF({orientation:"landscape",unit:"pt",format:"a4"}),H=doc.internal.pageSize.getHeight(),lg=await logoData();
  if(lg)doc.addImage(lg.url,"PNG",36,26,110,110*lg.h/lg.w);
  doc.setFont("helvetica","bold").setFontSize(16).setTextColor(15,27,51).text("P&L "+(plView==="products"?"by product":"comparison")+" - "+PL.map(pl=>PN[pl]).join(" vs "),166,44);
@@ -576,6 +577,61 @@ async function plPDF(){if(!window.jspdf){alert("PDF library not loaded");return}
  const y=doc.lastAutoTable.finalY+12;doc.setFontSize(7.5).setTextColor(90).text(doc.splitTextToSize("Industrial cost = materials + conversion (labour, burden, depreciation, maintenance, energy) + plant scrap + logistics. Industrial margin = revenue - industrial cost. Operating result = after G&A, before taxes and financial items. Percentages on the revenue of the same plant; pp = percentage points.",doc.internal.pageSize.getWidth()-72),36,Math.min(y,H-40));
  const n=doc.internal.getNumberOfPages();for(let i=1;i<=n;i++){doc.setPage(i);doc.setFont("helvetica","normal").setFontSize(7.5).setTextColor(130).text("ADLER Pelzer Group - Product cost console  |  confidential",36,H-18)}
  doc.save(plView==="products"?"PL_by_product.pdf":"PL_comparison.pdf")}
+
+/* ----- Business Case format (stacked P&L blocks) ----- */
+const PNL0=()=>({subsidy:0,hq:0,fin:0,tax:0});
+const pnlIn=pl=>Object.assign(PNL0(),S.plants[pl].pnl||{});
+function setPnl(pl,k,v){const P=S.plants[pl];P.pnl=Object.assign(PNL0(),P.pnl||{});P.pnl[k]=k==="tax"?num(v)/100:num(v);save();render(true)}
+function bcModel(pl){const D=plData(pl,"ALL",plAll),I=pnlIn(pl),o={};
+ o.sales=D.rev;o.mat=D.mat+D.mscr;o.dp=D.dl;o.cm1=o.sales-o.mat-o.dp;o.varc=D.en+D.mnt+D.scrap+D.log;o.cm2=o.cm1-o.varc;o.fixed=D.bur;o.ind=D.ga;o.mp=o.cm2-o.fixed-o.ind;
+ o.sub=I.subsidy;o.hq=I.hq;o.ebitda=o.mp+o.sub-o.hq;o.da=D.dep;o.ebit=o.ebitda-o.da;o.fin=I.fin;o.ebt=o.ebit-o.fin;o.tax=o.ebt>0?o.ebt*I.tax:0;o.net=o.ebt-o.tax;
+ o.vol=D.vol;o.ex=D.ex;o.exNames=D.exNames;o.exIc=D.exIc;o.taxRate=I.tax;return o}
+/* key, label, style, % label, editable input key */
+const BC_ROWS=[["sales","Sales FORD (100% of program)","sales"],["net","NET SALES","net"],["mat","Material cost","n","Material cost %"],["dp","Direct Personnel cost (incl. inefficiency coeff.)","dp","Direct Personnel cost %"],
+ ["cm1","CONTRIBUTION MARGIN I","b","CM I %"],["varc","Variable cost","n","Variable cost %"],["cm2","CONTRIBUTION MARGIN II","cm2","CM II %"],["fixed","Fixed cost","n","Fixed cost %"],["ind","Indirect / Admin / Management cost","ind","Indirect / Admin cost %"],
+ ["mp","MANUFACTURING PROFIT","b","Manufacturing profit %"],["sub","+ ANAPEC Subsidies","n",null,"subsidy"],["hq","- HQ Management Fee","n",null,"hq"],["ebitda","EBITDA","ebitda","EBITDA %"],["da","Depreciation & Amortization","da","D&A %"],["ebit","EBIT","b","EBIT %"],
+ ["fin","Financing costs (interest + fees)","n",null,"fin"],["ebt","EBT (Earnings Before Tax)","ebt","EBT %"],["tax","Corporate Tax","n"],["netinc","NET INCOME","netinc","Net Margin %"]];
+const BC_ST={sales:"background:#9ccc65;font-weight:700",net:"background:#9ccc65;font-weight:800;font-size:15px",dp:"background:#f5c242;color:#b91c1c;font-weight:600",b:"font-weight:800",cm2:"background:#f3d9d6;font-weight:800",ind:"background:#9ccc65",ebitda:"background:#f8ebe0;font-weight:800",da:"color:#15803d",ebt:"background:#ffff66;font-weight:800",netinc:"background:#9ccc65;font-weight:800",n:""};
+const bcV=(o,k)=>k==="net"||k==="sales"?o.sales:k==="netinc"?o.net:o[k];
+const bcF=v=>!isFinite(v)?"—":Math.round(v)<0?`<span style="color:#b91c1c">(${fm(Math.abs(v),0)})</span>`:fm(v,0);
+const bcF2=v=>!isFinite(v)?"—":v<-0.0005?`<span style="color:#b91c1c">(${fm(-v,3)})</span>`:fm(Math.abs(v)<0.0005?0:v,3);
+const bcT2=v=>!isFinite(v)?"-":v<-0.0005?"("+fm(-v,3)+")":fm(Math.abs(v)<0.0005?0:v,3);
+const bcT=v=>!isFinite(v)?"-":Math.round(v)<0?"("+fm(Math.abs(v),0)+")":fm(v,0);
+function bcBlock(pl){const o=bcModel(pl),I=pnlIn(pl),col={TNG:"#c2410c",ZGZ:"#1d4ed8",TNA:"#047857"}[pl];
+ const inp=(k)=>`<input type="number" step="any" value="${k==="tax"?rnd(I.tax*100):I[k]}" onchange="setPnl('${pl}','${k}',this.value)" style="width:130px;text-align:right">`;
+ let rows="";
+ for(const [k,l,st,pl2,ik] of BC_ROWS){const v=bcV(o,k),sty=BC_ST[st]||"";
+  const label=k==="tax"?`Corporate Tax <span style="font-weight:400;font-size:12px">(rate ${inp("tax").replace('width:130px','width:70px')} %)</span>`:l;
+  const cell=ik?inp(ik):bcF(v);
+  rows+=`<tr style="${sty}"><td style="padding:5px 9px">${label}</td><td class="n" style="padding:5px 9px">${cell}</td><td class="n" style="padding:5px 9px">${o.vol?bcF2(v/o.vol):"—"}</td></tr>`;
+  if(pl2)rows+=`<tr style="color:#b91c1c;font-style:italic;font-size:12px"><td style="padding:2px 9px 2px 22px">${pl2}</td><td class="n" style="padding:2px 9px">${o.sales?fp(v/o.sales):"—"}</td><td></td></tr>`}
+ return `<div style="margin-bottom:22px"><div class="row" style="border-left:6px solid ${col};padding-left:10px;margin-bottom:6px"><h3 style="margin:0;font-size:16px;color:${col}">${PN[pl]}</h3><span class="sub" style="margin:0">${fm(o.vol/1e3,1)} k pcs · ${plAll?"all products":o.ex?"priced products only ("+o.ex+" excluded)":"all products priced"}</span></div>
+ <table style="min-width:760px;max-width:980px;border-collapse:collapse"><tr style="background:#3a4a2b;color:#fff"><th style="padding:6px 9px;text-align:left;background:#3a4a2b;color:#fff">EUR</th><th class="n" style="padding:6px 9px;background:#3a4a2b;color:#fff;width:190px">Steady state (annual)</th><th class="n" style="padding:6px 9px;background:#3a4a2b;color:#fff;width:130px">EUR per piece</th></tr>${rows}</table></div>`}
+function pageBC(){const A=PL.includes("TNA");
+ return `<div style="background:#ffff66;text-align:center;font-weight:800;font-size:19px;padding:8px;border-radius:8px;margin:6px 0 14px">P&amp;L with assumptions · steady-state year · EUR</div>
+ ${PL.map(bcBlock).join("")}
+ <p class="sub"><b>How the console lines map to this layout.</b> Material cost = BOM lines + material scrap &amp; overhead. Direct Personnel = direct labour. Variable cost = energy + maintenance + plant scrap + logistics. Fixed cost = plant overhead pool (burden). Indirect / Admin / Management = G&amp;A (${S.recovery?"allocated from the G&A pool":"% of selling price"}). Manufacturing profit = CM II − fixed − indirect, before depreciation. D&amp;A = depreciation of the machines in the rates only (the Business Case also depreciates buildings and infrastructure: expect a lower D&amp;A here). Subsidies, HQ fee, financing costs and tax rate are <b>inputs</b> (not computed by the console, entered per plant, saved with the data). The console has one steady-state year: no 2026-2031 ramp-up.</p>
+ <div class="row"><button class="btn sec" data-ok="1" onclick="bcCSV()">⬇ Export (CSV)</button><button class="btn sec" data-ok="1" onclick="bcPDF()">⬇ PDF (one page per plant)</button></div>`}
+function bcCSV(){const M={};for(const pl of PL)M[pl]=bcModel(pl);const hd=["EUR"];for(const pl of PL)hd.push(PN[pl]+" annual",PN[pl]+" % of net sales",PN[pl]+" per piece");
+ const rows=[hd];for(const [k,l,st,pl2] of BC_ROWS){const r=[l];for(const pl of PL){const v=bcV(M[pl],k);r.push(Math.round(v),M[pl].sales?Math.round(v/M[pl].sales*1e4)/100:"",M[pl].vol?Math.round(v/M[pl].vol*1e3)/1e3:"")}rows.push(r)}
+ const a=document.createElement("a");a.href=URL.createObjectURL(new Blob(["﻿"+rows.map(r=>r.map(x=>`"${String(x).replace(/"/g,'""')}"`).join(";")).join("\n")],{type:"text/csv"}));a.download="PL_business_case_format.csv";a.click()}
+async function bcPDF(){if(!window.jspdf){alert("PDF library not loaded");return}
+ const doc=new window.jspdf.jsPDF({orientation:"portrait",unit:"pt",format:"a4"}),W=doc.internal.pageSize.getWidth(),H=doc.internal.pageSize.getHeight(),lg=await logoData();
+ const FILL={sales:[156,204,101],net:[156,204,101],dp:[245,194,66],cm2:[243,217,214],ind:[156,204,101],ebitda:[248,235,224],ebt:[255,255,102],netinc:[156,204,101]};
+ PL.forEach((pl,i)=>{if(i)doc.addPage();const o=bcModel(pl);
+  if(lg)doc.addImage(lg.url,"PNG",36,24,100,100*lg.h/lg.w);
+  doc.setFont("helvetica","bold").setFontSize(15).setTextColor(15,27,51).text("P&L with assumptions - "+PN[pl],150,42);
+  doc.setFont("helvetica","normal").setFontSize(8.5).setTextColor(100).text("steady-state year, EUR  |  "+fm(o.vol/1e3,1)+" k pcs  |  "+(S.recovery?"full fixed-cost recovery":"base costs of each Business Case")+(plAll?"":"  |  products without price excluded")+"  |  "+new Date().toLocaleDateString("en-GB"),150,56);
+  const body=[],meta=[];
+  for(const [k,l,st,pl2] of BC_ROWS){const v=bcV(o,k);body.push([k==="tax"?"Corporate Tax (rate "+fm(o.taxRate*100,1)+" %)":l,bcT(v),o.vol?bcT2(v/o.vol):"-"]);meta.push({st,neg:Math.round(v)<0,pct:false});
+   if(pl2){body.push([pl2,o.sales?pp(v/o.sales):"-",""]);meta.push({st:"pct"})}}
+  doc.autoTable({startY:84,head:[["EUR","Steady state (annual)","per piece"]],body,theme:"grid",styles:{fontSize:8.2,cellPadding:2.6,lineColor:[225,228,235]},headStyles:{fillColor:[58,74,43],textColor:255},margin:{left:36,right:36},columnStyles:{1:{halign:"right"},2:{halign:"right"}},
+   didParseCell:d=>{if(d.section!=="body")return;const m=meta[d.row.index];if(m.st==="pct"){d.cell.styles.textColor=[185,28,28];d.cell.styles.fontStyle="italic";d.cell.styles.fontSize=7.2;d.cell.styles.cellPadding=1.6;return}
+    if(FILL[m.st])d.cell.styles.fillColor=FILL[m.st];if(["net","b","cm2","ebitda","ebt","netinc","sales"].includes(m.st))d.cell.styles.fontStyle="bold";
+    if(m.st==="dp")d.cell.styles.textColor=[185,28,28];if(m.st==="da")d.cell.styles.textColor=[21,128,61];if(d.column.index>0&&m.neg)d.cell.styles.textColor=[185,28,28]}});
+  const y=doc.lastAutoTable.finalY+10;doc.setFontSize(7).setTextColor(100).text(doc.splitTextToSize("Material cost = BOM lines + scrap & overhead; Variable cost = energy + maintenance + plant scrap + logistics; Fixed cost = plant overhead pool; Indirect/Admin = G&A. D&A = machine depreciation only. Subsidies, HQ fee, financing and tax are inputs.",W-72),36,Math.min(y,H-50));
+  doc.setFontSize(7.5).setTextColor(130).text("ADLER Pelzer Group - Product cost console  |  confidential",36,H-18)});
+ doc.save("PL_business_case_format.pdf")}
 
 function pagePrd(){return `<div class="row"><button class="btn" onclick="newProd()">+ New product code</button></div><div class="pgrid">${S.products.map(p=>{
  const box=pl=>{const c=pcalc(p,pl);return `<div class="${PCLS[pl]}"><span>${PN[pl]}</span><b>${fm(c.ic,3)} €</b><span>${c.complete?"margin "+fp(c.marginPct):"processes to enter"}</span></div>`};
