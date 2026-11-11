@@ -70,7 +70,7 @@ code{background:#eef1f7;padding:1px 5px;border-radius:4px;font-size:12.5px}
 li{margin:4px 0}
 @media(max-width:860px){body{flex-direction:column}aside{width:100%;height:auto;position:static;flex-direction:row;flex-wrap:wrap}.logo{display:none}aside .grow,aside .mini,aside .tools{display:none}main,.top{padding:14px}}
 .wy{background:#fef9c3!important}.wo{background:#fed7aa!important}.fl{display:inline-block;margin-left:6px;font-size:11px;font-weight:700;border-radius:99px;padding:0 6px;cursor:help;line-height:16px}.fl.y{background:#fde047;color:#713f12}.fl.o{background:#fb923c;color:#431407}.navb{margin-left:auto;font-size:11px;font-weight:700;border-radius:99px;padding:0 7px;background:#fb923c;color:#431407}.navb.y{background:#fde047;color:#713f12}
-table.tw th,table.tw td{white-space:normal;padding:6px 7px}table.tw th{vertical-align:bottom;line-height:1.2}table.tw td.nw{white-space:nowrap}table.mcT{min-width:1700px}table.mcT input,table.mcT select{min-width:0;padding:5px 6px;font-size:12.5px}
+table.tw th,table.tw td{white-space:normal;padding:6px 7px}table.tw th{vertical-align:bottom;line-height:1.2}table.tw td.nw{white-space:nowrap}table.tw td.n{white-space:nowrap}table.mcT{min-width:1700px}table.mcT input,table.mcT select{min-width:0;padding:5px 6px;font-size:12.5px}
 .hid{display:none!important}#login{width:380px;max-width:92vw;align-self:flex-start;margin:12vh auto;background:#fff;border:1px solid var(--line);border-radius:16px;padding:28px;box-shadow:0 10px 40px #0f1b3320}#login h2{font-size:20px;margin-bottom:14px}#login label{display:block;margin:12px 0 4px;color:var(--mut);font-size:12.5px}#login .btn{width:100%;margin-top:18px;padding:10px}#l_e{color:var(--bad);margin-top:10px;min-height:20px;font-size:13px}#app{display:flex;flex:1;min-width:0}#login .lg{width:240px;max-width:100%;display:block;margin:0 0 18px}.lgbox{background:#fff;border-radius:10px;padding:10px 12px;margin-bottom:8px}.lgbox img{width:100%;display:block}.logo span{display:block;margin-top:6px}
 </style>
 </head>
@@ -476,8 +476,15 @@ function pageMat(){const M=mpOf(S),P=S.products;let h="";
  return h+pageMatLegacy()}
 
 /* ======================= P&L COMPARISON ======================= */
-let plProd="ALL",plAll=false;
+let plProd="ALL",plAll=false,plView="plants",plUnit="year";
 const PSH={TNG:"Tangier",ZGZ:"Zaragoza",TNA:"Automated"};
+const plPc=k=>plUnit==="pc"&&!["u","u2"].includes(k);
+const plDiv=k=>k==="u"?1e3:(k==="u2"||plPc(k))?1:1e3;
+const plDec=k=>k==="u"?1:(k==="u2"||plPc(k))?3:0;
+const plFmt=(k,v)=>!isFinite(v)?"—":fm(v/plDiv(k),plDec(k));
+const plPP=x=>!isFinite(x)?"":Math.abs(x)<0.05?"0.0":(x>0?"+":"−")+fm(Math.abs(x),1);
+const plSg=(k,d)=>{if(!isFinite(d))return"—";const dec=plDec(k),q=Math.round(Math.abs(d/plDiv(k))*10**dec)/10**dec;return(q===0?"":d>0?"+":"−")+fm(q,dec)};
+const plUnitTxt=()=>plUnit==="pc"?"€ per piece (average of the products in scope)":"€ thousands per year";
 function plData(pl,id,all){const o={rev:0,vol:0,mat:0,mscr:0,dl:0,bur:0,dep:0,mnt:0,en:0,scrap:0,log:0,ic:0,ga:0,n:0,ex:0,exIc:0,exNames:[]};
  for(const p of S.products){if(id!=="ALL"&&p.id!==id)continue;const v=p.v[pl],c=pcalc(p,pl),vol=num(v.volume),pr=num(v.price);
   if(!all&&!(pr>0)){o.ex++;o.exIc+=vol*c.ic;o.exNames.push(p.code);continue}
@@ -492,54 +499,83 @@ const PL_ROWS=()=>[["rev","Revenue (selling price × volume)","rev",x=>x.rev],["
  ["mm","memo · Margin on materials (revenue − total materials)","i",x=>x.rev-x.mat-x.mscr],["vol","memo · Volume (k pcs)","u",x=>x.vol],["ap","memo · Average selling price (€/pc)","u2",x=>x.vol?x.rev/x.vol:NaN],["ac","memo · Average industrial cost (€/pc)","u2",x=>x.vol?x.ic/x.vol:NaN]];
 function plModel(){const D={};for(const pl of PL)D[pl]=plData(pl,plProd,plAll);
  const deltas=[["ZGZ","TNG","Zaragoza − Tangier"]];if(PL.includes("TNA"))deltas.push(["TNA","ZGZ","Automated − Zaragoza"]);
- const rows=PL_ROWS().map(([key,label,kind,f])=>{const r={key,label,kind,v:{},pct:{}};for(const pl of PL){const v=f(D[pl]);r.v[pl]=v;r.pct[pl]=(["u","u2"].includes(kind)||!D[pl].rev)?NaN:v/D[pl].rev}return r});
+ const rows=PL_ROWS().map(([key,label,kind,f])=>{const r={key,label,kind,v:{},pct:{}};for(const pl of PL){let v=f(D[pl]);r.pct[pl]=(["u","u2"].includes(kind)||!D[pl].rev)?NaN:v/D[pl].rev;if(plPc(kind))v=D[pl].vol?v/D[pl].vol:NaN;r.v[pl]=v}return r});
  return{D,rows,deltas}}
-const plPP=x=>!isFinite(x)?"":Math.abs(x)<0.05?"0.0":(x>0?"+":"−")+fm(Math.abs(x),1);
-const plFmt=(k,v)=>!isFinite(v)?"—":k==="u"?fm(v/1e3,1):k==="u2"?fm(v,3):fm(v/1e3,0);
 const plGood=k=>({rev:1,m:1,i:1,c:-1,s:-1,t:-1,u2:0,u:0}[k]||0);
 function plCls(k,d,key){if(!isFinite(d)||Math.abs(d)<1e-9)return"";const g=key==="ac"?-1:key==="ap"?0:plGood(k);if(!g)return"";return(d>0)===(g>0)?"pos":"neg"}
-function plText(M){const o=M.D,L=[];const f=x=>fm(x/1e3,0)+" k€",p=(x,r)=>r?fp(x/r):"—";
- const line=pl=>`${PN[pl]}: industrial margin <b>${f(o[pl].rev-o[pl].ic)}</b> (${p(o[pl].rev-o[pl].ic,o[pl].rev)}), operating result after G&A <b>${f(o[pl].rev-o[pl].ic-o[pl].ga)}</b> (${p(o[pl].rev-o[pl].ic-o[pl].ga,o[pl].rev)}) on revenue ${f(o[pl].rev)}`;
- for(const pl of PL)L.push(line(pl));
- for(const [a,b,lab] of M.deltas){const d=M.rows.filter(r=>["c","s"].includes(r.kind)&&r.key!=="tmat"&&r.key!=="conv").map(r=>({l:r.label,d:r.v[a]-r.v[b]})).filter(x=>Math.abs(x.d)>500).sort((x,y)=>Math.abs(y.d)-Math.abs(x.d)).slice(0,3);
+function plText(M){const o=M.D,L=[],f=x=>fm(x/1e3,0)+" k€",p=(x,r)=>r?fp(x/r):"—";
+ for(const pl of PL)L.push(`${PN[pl]}: industrial margin <b>${f(o[pl].rev-o[pl].ic)}</b> (${p(o[pl].rev-o[pl].ic,o[pl].rev)}), operating result after G&A <b>${f(o[pl].rev-o[pl].ic-o[pl].ga)}</b> (${p(o[pl].rev-o[pl].ic-o[pl].ga,o[pl].rev)}) on revenue ${f(o[pl].rev)}`);
+ for(const [a,b,lab] of M.deltas){const d=PL_ROWS().filter(r=>r[2]==="c").map(r=>({l:r[1],d:r[3](o[a])-r[3](o[b])})).filter(x=>Math.abs(x.d)>500).sort((x,y)=>Math.abs(y.d)-Math.abs(x.d)).slice(0,3);
   if(d.length)L.push(`${lab}: the cost lines that move most are ${d.map(x=>`<b>${x.l.split(" (")[0]}</b> ${x.d>=0?"+":"−"}${fm(Math.abs(x.d)/1e3,0)} k€`).join(", ")}.`)}
  return L}
-function pagePL(){const M=plModel(),o=M.D,A=PL.includes("TNA");
- const sel=`<select style="width:auto;max-width:380px" onchange="plProd=this.value;render()"><option value="ALL" ${plProd==="ALL"?"selected":""}>All products (annual, sold volumes)</option>${S.products.map(p=>`<option value="${p.id}" ${plProd===p.id?"selected":""}>${esc(p.code)} · ${esc(p.desc)}</option>`).join("")}</select>`;
- const ex=PL.map(pl=>o[pl].ex?`${PN[pl]}: ${o[pl].ex} product(s) not included, industrial cost ${fm(o[pl].exIc/1e3,0)} k€`:"").filter(Boolean)[0];
- const exNote=(!plAll&&ex)?`<p class="sub" style="margin:6px 0 0;color:#b45309">⚠ Products without a selling price are <b>excluded</b> (${esc(o.TNG.exNames.join(", "))}): ${PL.map(pl=>PN[pl]+" "+fm(o[pl].exIc/1e3,0)+" k€").join(" · ")} of industrial cost not in this P&L. Tick “include products without selling price” to see their cost with zero revenue.</p>`:"";
+/* ----- by product ----- */
+function plProdModel(){const T={},rows=[];for(const pl of PL)T[pl]={vol:0,rev:0,ic:0,ga:0};
+ for(const p of S.products){const r={p,v:{}};for(const pl of PL){const v=p.v[pl],c=pcalc(p,pl),vol=num(v.volume),pr=num(v.price);
+   if(!plAll&&!(pr>0)){r.v[pl]=null;continue}
+   const rev=vol*pr,ic=vol*c.ic,ga=vol*(S.recovery?c.gaA:(pr>0?pr*num(S.plants[pl].params.ga):0)),im=rev-ic,op=im-ga;
+   r.v[pl]={vol,rev,ic,ga,im,op,imPct:rev?im/rev:NaN,opPct:rev?op/rev:NaN};const t=T[pl];t.vol+=vol;t.rev+=rev;t.ic+=ic;t.ga+=ga}
+  rows.push(r)}
+ const tot={};for(const pl of PL){const t=T[pl],im=t.rev-t.ic,op=im-t.ga;tot[pl]={vol:t.vol,rev:t.rev,ic:t.ic,ga:t.ga,im,op,imPct:t.rev?im/t.rev:NaN,opPct:t.rev?op/t.rev:NaN}}
+ return{rows,tot}}
+const plPV=(x,vol)=>!isFinite(x)?NaN:plUnit==="pc"?(vol?x/vol:NaN):x/1e3;
+const plPF=(x,vol)=>{const v=plPV(x,vol);return isFinite(v)?fm(v,plUnit==="pc"?3:0):"—"};
+function pageProdPL(){const M=plProdModel(),A=PL.includes("TNA");
+ const head1=PL.map(pl=>`<th class="n ${PCLS[pl]}" colspan="4" style="text-align:center">${PN[pl]}</th>`).join("");
+ const head2=PL.map(pl=>`<th class="n ${PCLS[pl]}">Ind. margin</th><th class="n">%</th><th class="n">Result after G&amp;A</th><th class="n">%</th>`).join("");
+ const cell=(pl,x,wr)=>{if(!x)return`<td class="n ${PCLS[pl]} wy" colspan="4" style="text-align:center;color:#92400e">no selling price</td>`;
+  const neg=v=>isFinite(v)&&v<0?" neg":"";return `<td class="n ${PCLS[pl]}${neg(x.im)}">${plPF(x.im,x.vol)}</td><td class="n${neg(x.imPct)}">${fp(x.imPct)}</td><td class="n${neg(x.op)}">${plPF(x.op,x.vol)}</td><td class="n${neg(x.opPct)}">${fp(x.opPct)}</td>`};
+ const body=M.rows.map(r=>{const p=r.p;return `<tr><td><b>${esc(p.desc)}</b><br><span style="color:#6b7590;font-size:11.5px">${esc(p.code)}</span></td><td class="n">${fm(p.v.ZGZ.volume/1e3,1)}</td>${priceCell(p)}${PL.map(pl=>cell(pl,r.v[pl])).join("")}<td><button class="btn sec" onclick="openProd('${p.id}','CMP')">Open</button></td></tr>`}).join("");
+ const tot=`<tr class="tot"><td><b>TOTAL ${plAll?"(all products)":"(priced products)"}</b></td><td class="n">${fm(M.tot.ZGZ.vol/1e3,1)}</td><td></td>${PL.map(pl=>{const x=M.tot[pl],neg=v=>isFinite(v)&&v<0?" neg":"";return `<td class="n ${PCLS[pl]}${neg(x.im)}">${plPF(x.im,x.vol)}</td><td class="n${neg(x.imPct)}">${fp(x.imPct)}</td><td class="n${neg(x.op)}">${plPF(x.op,x.vol)}</td><td class="n${neg(x.opPct)}">${fp(x.opPct)}</td>`}).join("")}<td></td></tr>`;
+ return `<div style="overflow-x:auto"><table class="tw"><tr><th rowspan="2" style="min-width:210px">Product</th><th class="n" rowspan="2">Volume k pcs</th><th class="n" rowspan="2">Selling price EXW €/pc</th>${head1}<th rowspan="2"></th></tr><tr>${head2}</tr>${body}${tot}</table></div>
+ <p class="sub" style="margin-top:8px">Industrial margin = revenue − industrial cost; result after G&amp;A also deducts G&amp;A (${S.recovery?"allocated from the pool":"% of price"}). Percentages on the revenue of the same product and plant. Amounts in ${plUnitTxt()}. Red = negative.</p>`}
+function pagePL(){const A=PL.includes("TNA"),M=plView==="plants"?plModel():null,o=M?M.D:plModel().D;
+ const sel=plView==="plants"?`<select style="width:auto;max-width:360px" onchange="plProd=this.value;render()"><option value="ALL" ${plProd==="ALL"?"selected":""}>All products (annual, sold volumes)</option>${S.products.map(p=>`<option value="${p.id}" ${plProd===p.id?"selected":""}>${esc(p.code)} · ${esc(p.desc)}</option>`).join("")}</select>`:"";
+ const exNote=(!plAll&&o.TNG.ex)?`<p class="sub" style="margin:6px 0 0;color:#b45309">⚠ Products without a selling price are <b>excluded</b> (${esc(o.TNG.exNames.join(", "))}): ${PL.map(pl=>PN[pl]+" "+fm(o[pl].exIc/1e3,0)+" k€").join(" · ")} of industrial cost not in this P&L. Tick “include products without selling price” to see their cost with zero revenue.</p>`:"";
+ const tabs=`<div class="tabs" style="margin:0"><button class="${plView==="plants"?"on C":""}" onclick="plView='plants';render()">Plants side by side</button><button class="${plView==="products"?"on C":""}" onclick="plView='products';render()">By product</button></div>
+  <select style="width:auto" onchange="plUnit=this.value;render()"><option value="year" ${plUnit==="year"?"selected":""}>k€ per year</option><option value="pc" ${plUnit==="pc"?"selected":""}>€ per piece</option></select>`;
+ const head=`<div class="row" style="gap:12px"><h2 style="margin:0">P&amp;L comparison</h2>${tabs}<span style="flex:1"></span>${sel}<label style="display:flex;gap:6px;align-items:center;font-size:12.5px"><input type="checkbox" style="width:auto;min-width:0" ${plAll?"checked":""} onchange="plAll=this.checked;render()"> include products without selling price</label></div>`;
+ const btns=`<div class="row"><button class="btn sec" data-ok="1" onclick="plCSV()">⬇ Export table (CSV)</button><button class="btn sec" data-ok="1" onclick="plPDF()">⬇ PDF</button></div>`;
+ if(plView==="products")return `<div class="card">${head}<p class="sub">One row per product code, plants side by side${A?" (the third block is the Zaragoza plant with the automatic line)":""}. Revenue = selling price × annual volume. The two switches above define the cost basis.</p>${exNote}${pageProdPL()}${btns}</div>`;
  const th=PL.map(pl=>`<th class="n ${PCLS[pl]}" colspan="2" style="text-align:center">${PN[pl]}</th>`).join("")+M.deltas.map(d=>`<th class="n" colspan="2" style="text-align:center;border-left:2px solid var(--line)">Δ ${d[2]}</th>`).join("");
- const th2=PL.map(pl=>`<th class="n ${PCLS[pl]}">k€</th><th class="n">% rev.</th>`).join("")+M.deltas.map(()=>`<th class="n" style="border-left:2px solid var(--line)">Δ k€</th><th class="n">Δ pp</th>`).join("");
+ const th2=PL.map(pl=>`<th class="n ${PCLS[pl]}">${plUnit==="pc"?"€/pc":"k€"}</th><th class="n">% rev.</th>`).join("")+M.deltas.map(()=>`<th class="n" style="border-left:2px solid var(--line)">Δ ${plUnit==="pc"?"€/pc":"k€"}</th><th class="n">Δ pp</th>`).join("");
  const body=M.rows.map(r=>{const b=["t","m","rev"].includes(r.kind),it=["i","u","u2"].includes(r.kind),sb=r.kind==="s";
   const st=b?"font-weight:800;background:#f2f5fb":sb?"font-weight:700":it?"color:#6b7590;font-style:italic":"";
   const cells=PL.map(pl=>`<td class="n ${PCLS[pl]}" style="${st}">${plFmt(r.kind,r.v[pl])}</td><td class="n" style="${st}">${isFinite(r.pct[pl])?fp(r.pct[pl]):""}</td>`).join("");
-  const dc=M.deltas.map(([a,bb])=>{const d=r.v[a]-r.v[bb],pp=(r.pct[a]-r.pct[bb])*100,cl=plCls(r.kind,d,r.key);
-   const dec=r.kind==="u"?1:r.kind==="u2"?3:0,sgn=x=>{const q=Math.round(Math.abs(x)*10**dec)/10**dec;return(q===0?"":x>0?"+":"−")+fm(q,dec)};
-   return `<td class="n ${cl}" style="border-left:2px solid var(--line);${st}">${isFinite(d)?(r.kind==="u"?sgn(d/1e3):r.kind==="u2"?sgn(d):sgn(d/1e3)):"—"}</td><td class="n ${isFinite(pp)&&Math.abs(pp)>=0.05?plCls(r.kind,pp,r.key):""}" style="${st}">${plPP(pp)}</td>`}).join("");
+  const dc=M.deltas.map(([a,bb])=>{const d=r.v[a]-r.v[bb],q=(r.pct[a]-r.pct[bb])*100;
+   return `<td class="n ${plCls(r.kind,d,r.key)}" style="border-left:2px solid var(--line);${st}">${plSg(r.kind,d)}</td><td class="n ${isFinite(q)&&Math.abs(q)>=0.05?plCls(r.kind,q,r.key):""}" style="${st}">${plPP(q)}</td>`}).join("");
   return `<tr><td style="${st};white-space:normal">${r.label}</td>${cells}${dc}</tr>`}).join("");
- return `<div class="card"><div class="row"><h2 style="margin:0">P&amp;L comparison · annual, € thousands</h2><span style="flex:1"></span>${sel}
-  <label style="display:flex;gap:6px;align-items:center;font-size:12.5px"><input type="checkbox" style="width:auto;min-width:0" ${plAll?"checked":""} onchange="plAll=this.checked;render()"> include products without selling price</label></div>
- <p class="sub">Selling price × annual volume against the cost of each plant${A?" (the third column is the Zaragoza plant with the automatic line)":""}. Percentages are on the revenue of the same plant; Δ pp = difference in percentage points. In the Δ columns <b style="color:var(--ok)">green</b> = better, <b style="color:var(--bad)">red</b> = worse. The two switches above define the cost basis.</p>${exNote}
+ return `<div class="card">${head}
+ <p class="sub">Selling price × annual volume against the cost of each plant${A?" (the third column is the Zaragoza plant with the automatic line)":""}. Amounts in ${plUnitTxt()}; percentages are on the revenue of the same plant; Δ pp = difference in percentage points. In the Δ columns <b style="color:var(--ok)">green</b> = better, <b style="color:var(--bad)">red</b> = worse. The two switches above define the cost basis.</p>${exNote}
  <ul style="line-height:1.7;margin:8px 0">${plText(M).map(x=>`<li>${x}</li>`).join("")}</ul>
  <div style="overflow-x:auto"><table class="tw"><tr><th rowspan="2" style="min-width:300px">Line</th>${th}</tr><tr>${th2}</tr>${body}</table></div>
- <p class="sub" style="margin-top:8px">Industrial cost = materials + conversion (labour, burden, depreciation, maintenance, energy) + plant scrap + logistics. ${S.recovery?"G&A is the allocated share of the G&A pool, so every fixed-cost pool is covered 100% when all products are included.":"G&A is charged as a % of selling price and the fixed-cost pools may not be fully recovered (see Burden &amp; rates)."} Operating result is before taxes and financial items.</p>
- <div class="row"><button class="btn sec" data-ok="1" onclick="plCSV()">⬇ Export table (CSV)</button><button class="btn sec" data-ok="1" onclick="plPDF()">⬇ PDF</button></div></div>`}
-function plCSV(){const M=plModel(),hd=["Line"];for(const pl of PL)hd.push(PN[pl]+" kEUR",PN[pl]+" % of revenue");for(const d of M.deltas)hd.push(d[2]+" kEUR",d[2]+" pp");
- const rows=[hd].concat(M.rows.map(r=>{const x=[r.label];for(const pl of PL){x.push(["u2"].includes(r.kind)?r.v[pl]:r.kind==="u"?r.v[pl]/1e3:r.v[pl]/1e3,isFinite(r.pct[pl])?r.pct[pl]*100:"")}
-  for(const [a,b] of M.deltas){const d=r.v[a]-r.v[b];x.push(r.kind==="u2"?d:d/1e3,isFinite(r.pct[a])?(r.pct[a]-r.pct[b])*100:"")}return x}));
- const a=document.createElement("a");a.href=URL.createObjectURL(new Blob(["﻿"+rows.map(r=>r.map(x=>`"${typeof x==="number"?String(Math.round(x*1e4)/1e4):String(x??"").replace(/"/g,'""')}"`).join(";")).join("\n")],{type:"text/csv"}));a.download="PL_comparison.csv";a.click()}
+ <p class="sub" style="margin-top:8px">Industrial cost = materials + conversion (labour, burden, depreciation, maintenance, energy) + plant scrap + logistics. ${S.recovery?"G&A is the allocated share of the G&A pool, so every fixed-cost pool is covered 100% when all products are included.":"G&A is charged as a % of selling price and the fixed-cost pools may not be fully recovered (see Burden &amp; rates)."} Operating result is before taxes and financial items.</p>${btns}</div>`}
+function plSheet(){ /* matrix of the current view: {title, head, num, fmt} */
+ if(plView==="products"){const M=plProdModel(),head=["Product","Code","Volume k pcs"];for(const pl of PL)head.push(PSH[pl]+" ind. margin","% ","result after G&A","% ");
+  const mk=(x)=>x?[plPV(x.im,x.vol),x.imPct*100,plPV(x.op,x.vol),x.opPct*100]:["","","",""];
+  const rows=M.rows.map(r=>[r.p.desc,r.p.code,num(r.p.v.ZGZ.volume)/1e3].concat(...PL.map(pl=>mk(r.v[pl]))));
+  rows.push(["TOTAL","",M.tot.ZGZ.vol/1e3].concat(...PL.map(pl=>mk(M.tot[pl]))));
+  return{head,rows,dec:plUnit==="pc"?3:0,kind:"products"}}
+ const M=plModel(),head=["Line"];for(const pl of PL)head.push(PSH[pl]+(plUnit==="pc"?" EUR/pc":" kEUR"),PSH[pl]+" % of revenue");for(const d of M.deltas)head.push(d[2]+(plUnit==="pc"?" EUR/pc":" kEUR"),d[2]+" pp");
+ const rows=M.rows.map(r=>{const x=[r.label];for(const pl of PL)x.push(r.v[pl]/plDiv(r.kind),isFinite(r.pct[pl])?r.pct[pl]*100:"");
+  for(const [a,b] of M.deltas)x.push((r.v[a]-r.v[b])/plDiv(r.kind),isFinite(r.pct[a])?(r.pct[a]-r.pct[b])*100:"");return x});
+ return{head,rows,kind:"plants",M}}
+function plCSV(){const S0=plSheet(),rows=[S0.head].concat(S0.rows.map(r=>r.map(x=>typeof x==="number"?(isFinite(x)?Math.round(x*1e4)/1e4:""):x)));
+ const a=document.createElement("a");a.href=URL.createObjectURL(new Blob(["﻿"+rows.map(r=>r.map(x=>`"${String(x??"").replace(/"/g,'""')}"`).join(";")).join("\n")],{type:"text/csv"}));a.download=plView==="products"?"PL_by_product.csv":"PL_comparison.csv";a.click()}
 async function plPDF(){if(!window.jspdf){alert("PDF library not loaded");return}
- const M=plModel(),doc=new window.jspdf.jsPDF({orientation:"landscape",unit:"pt",format:"a4"}),H=doc.internal.pageSize.getHeight(),lg=await logoData(),prod=plProd==="ALL"?"All products":(S.products.find(p=>p.id===plProd)||{}).code;
+ const S0=plSheet(),doc=new window.jspdf.jsPDF({orientation:"landscape",unit:"pt",format:"a4"}),H=doc.internal.pageSize.getHeight(),lg=await logoData();
  if(lg)doc.addImage(lg.url,"PNG",36,26,110,110*lg.h/lg.w);
- doc.setFont("helvetica","bold").setFontSize(16).setTextColor(15,27,51).text("P&L comparison - "+PL.map(pl=>PN[pl]).join(" vs "),166,44);
- doc.setFont("helvetica","normal").setFontSize(9).setTextColor(100).text(prod+"  |  annual, EUR thousands  |  "+(S.recovery?"full fixed-cost recovery":"base costs of each Business Case")+(S.alignZ?"  |  Tangier overhead aligned to Zaragoza":"")+"  |  "+new Date().toLocaleDateString("en-GB"),166,58);
- const head=[["Line"].concat(...PL.map(pl=>[PSH[pl]+" kEUR",PSH[pl]+" %"]),...M.deltas.map(d=>[d[2]+" kEUR",d[2]+" pp"]))];
- const body=M.rows.map(r=>[r.label].concat(...PL.map(pl=>[plFmt(r.kind,r.v[pl]),isFinite(r.pct[pl])?pp(r.pct[pl]):""]),...M.deltas.map(([a,b])=>{const d=r.v[a]-r.v[b],q=(r.pct[a]-r.pct[b])*100,u=r.kind==="u"?d/1e3:r.kind==="u2"?d:d/1e3;return[isFinite(d)?(u>0?"+":"")+fm(u,r.kind==="u"?1:r.kind==="u2"?3:0):"-",isFinite(q)?(q>0?"+":"")+fm(q,1):""]})));
- doc.autoTable({startY:90,head,body,theme:"grid",styles:{fontSize:7.5,cellPadding:2.5,lineColor:[220,224,235]},headStyles:{fillColor:[15,27,51],textColor:255,halign:"center"},margin:{left:36,right:36},columnStyles:Object.fromEntries(Array.from({length:head[0].length-1},(_,i)=>[i+1,{halign:"right"}])),
-  didParseCell:d=>{if(d.section==="body"&&["t","m","rev"].includes(M.rows[d.row.index].kind)){d.cell.styles.fontStyle="bold";d.cell.styles.fillColor=[242,245,251]}}});
- const y=doc.lastAutoTable.finalY+12;doc.setFontSize(7.5).setTextColor(90).text(doc.splitTextToSize("Industrial cost = materials + conversion (labour, burden, depreciation, maintenance, energy) + plant scrap + logistics. Percentages on the revenue of the same plant; pp = percentage points. "+(plAll?"Products without selling price included with zero revenue.":"Products without selling price excluded."),doc.internal.pageSize.getWidth()-72),36,Math.min(y,H-40));
+ doc.setFont("helvetica","bold").setFontSize(16).setTextColor(15,27,51).text("P&L "+(plView==="products"?"by product":"comparison")+" - "+PL.map(pl=>PN[pl]).join(" vs "),166,44);
+ const scope=plView==="plants"?(plProd==="ALL"?"All products":(S.products.find(p=>p.id===plProd)||{}).code):"All products";
+ doc.setFont("helvetica","normal").setFontSize(9).setTextColor(100).text(scope+"  |  "+(plUnit==="pc"?"EUR per piece":"annual, EUR thousands")+"  |  "+(plAll?"products without price included":"products without price excluded")+"  |  "+(S.recovery?"full fixed-cost recovery":"base costs of each Business Case")+(S.alignZ?"  |  Tangier overhead aligned to Zaragoza":"")+"  |  "+new Date().toLocaleDateString("en-GB"),166,58);
+ let body,bold=()=>false;
+ if(plView==="products"){
+  body=S0.rows.map(r=>r.map((x,i)=>{if(typeof x!=="number")return x;if(i===2)return fm(x,1);const k=(i-3)%4;return k===1||k===3?fm(x,1)+" %":fm(x,S0.dec)}));bold=i=>i===S0.rows.length-1}
+ else{const M=S0.M;body=M.rows.map(r=>[r.label].concat(...PL.map(pl=>[plFmt(r.kind,r.v[pl]),isFinite(r.pct[pl])?pp(r.pct[pl]):""]),...M.deltas.map(([a,b])=>[plSg(r.kind,r.v[a]-r.v[b]),plPP((r.pct[a]-r.pct[b])*100)])));bold=i=>["t","m","rev"].includes(M.rows[i].kind)}
+ doc.autoTable({startY:90,head:[S0.head],body,theme:"grid",styles:{fontSize:7.3,cellPadding:2.4,lineColor:[220,224,235]},headStyles:{fillColor:[15,27,51],textColor:255,halign:"center"},margin:{left:36,right:36},columnStyles:Object.fromEntries(Array.from({length:S0.head.length-2},(_,i)=>[i+(plView==="products"?2:1),{halign:"right"}])),
+  didParseCell:d=>{if(d.section==="body"&&bold(d.row.index)){d.cell.styles.fontStyle="bold";d.cell.styles.fillColor=[242,245,251]}}});
+ const y=doc.lastAutoTable.finalY+12;doc.setFontSize(7.5).setTextColor(90).text(doc.splitTextToSize("Industrial cost = materials + conversion (labour, burden, depreciation, maintenance, energy) + plant scrap + logistics. Industrial margin = revenue - industrial cost. Operating result = after G&A, before taxes and financial items. Percentages on the revenue of the same plant; pp = percentage points.",doc.internal.pageSize.getWidth()-72),36,Math.min(y,H-40));
  const n=doc.internal.getNumberOfPages();for(let i=1;i<=n;i++){doc.setPage(i);doc.setFont("helvetica","normal").setFontSize(7.5).setTextColor(130).text("ADLER Pelzer Group - Product cost console  |  confidential",36,H-18)}
- doc.save("PL_comparison.pdf")}
+ doc.save(plView==="products"?"PL_by_product.pdf":"PL_comparison.pdf")}
 
 function pagePrd(){return `<div class="row"><button class="btn" onclick="newProd()">+ New product code</button></div><div class="pgrid">${S.products.map(p=>{
  const box=pl=>{const c=pcalc(p,pl);return `<div class="${PCLS[pl]}"><span>${PN[pl]}</span><b>${fm(c.ic,3)} €</b><span>${c.complete?"margin "+fp(c.marginPct):"processes to enter"}</span></div>`};
