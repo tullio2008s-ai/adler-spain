@@ -654,40 +654,72 @@ async function bcyLoadFile(el){const f=el.files&&el.files[0];if(!f)return;if(rea
  try{const wb=XLSX.read(await f.arrayBuffer(),{type:"array"}),o=bcyParse(wb);
   const refY=o.years.includes(2030)?2030:o.years[o.years.length-2];
   if(S.bcy&&!confirm("Replace the year-by-year data already loaded from the Business Case?")){BCYMSG="";render(true);return}
-  S.bcy={file:f.name,years:o.years,ref:refY,plants:o.plants};save();
-  BCYMSG="✓ “"+f.name+"”: years "+o.years[0]+"-"+o.years[o.years.length-1]+" loaded for Tangier and Zaragoza (vehicles per year, fixed and indirect costs, D&A, subsidies, HQ fee, financing). Console volumes are taken as the "+refY+" level.";render()}
+  S.bcy=Object.assign({},S.bcy?{vOv:S.bcy.vOv,sOv:S.bcy.sOv,refVeh:S.bcy.refVeh,extend:S.bcy.extend}:{},{file:f.name,years:o.years,ref:refY,plants:o.plants});save();
+  BCYMSG="✓ “"+f.name+"”: years "+o.years[0]+"-"+o.years[o.years.length-1]+" loaded for Tangier and Zaragoza (vehicles per year, fixed and indirect costs, D&A, subsidies, HQ fee, financing). Check the vehicles per year in the table below: the file INPUT sheet can differ from your turnover sheet.";render()}
  catch(e){BCYMSG="⚠ Could not process “"+f.name+"”: "+(e&&e.message?e.message:e);render(true);alert(BCYMSG)}}
-function bcyModel(pl){const B=S.bcy,src=pl==="TNG"?"TNG":"ZGZ",P=B.plants[src],ys=B.years,all=bcyBasis==="bc"?true:plAll,D=plData(pl,"ALL",all),vref=num(P.veh[B.ref])||1;
+const parseNumIt=x=>{x=String(x).replace(/[€\s]/g,"");if(x==="")return NaN;if(x.includes(","))x=x.replace(/\./g,"").replace(",",".");else if(/^\d{1,3}(\.\d{3})+$/.test(x))x=x.replace(/\./g,"");return parseFloat(x)};
+function bcyYears(){const B=S.bcy,last=B.years[B.years.length-1],ys=B.years.slice();if(B.extend){for(const y of Object.keys(B.vOv||{}).map(Number).filter(y=>y>last).sort((a,b)=>a-b))ys.push(y)}return ys}
+function bcyVeh(P,y){const o=(S.bcy.vOv)||{};return o[y]!=null?num(o[y]):num(P.veh[y])}
+function bcyRef(P){const B=S.bcy;if(num(B.refVeh)>0)return num(B.refVeh);let m=0;for(const y of B.years.concat([B.years[B.years.length-1]+1]))m=Math.max(m,bcyVeh(P,y));return m||1}
+function setBcy(k,y,v){const B=S.bcy;B[k]=B[k]||{};const x=parseNumIt(v);if(String(v).trim()===""||!isFinite(x))delete B[k][y];else B[k][y]=x;CAL={};save();render(true)}
+function setBcyRef(v){const x=parseNumIt(v);S.bcy.refVeh=isFinite(x)&&x>0?x:0;save();render(true)}
+function setBcyExt(on){S.bcy.extend=!!on;save();render(true)}
+function bcyPaste(k){const B=S.bcy,t=document.getElementById("bcyPaste_"+k).value,st=parseInt(document.getElementById("bcyStart").value)||B.years[0];
+ const vals=t.split(/[\t\n;]+|\s{2,}/).map(z=>z.trim()).filter(z=>z!==""&&/^[\d.,\s€]+$/.test(z)).map(parseNumIt).filter(z=>isFinite(z));
+ if(!vals.length){alert("No numbers found in the pasted text");return}
+ B[k]=B[k]||{};vals.forEach((v,i)=>{B[k][st+i]=v});CAL={};save();render(true)}
+function bcyDrivers(){const B=S.bcy,P=B.plants.TNG,last=B.years[B.years.length-1],ys=B.years.concat([last+1]),vo=B.vOv||{},so=B.sOv||{},ref=bcyRef(P);
+ const inp=(k,y,ph)=>`<input type="text" value="${(B[k]||{})[y]!=null?B[k][y]:""}" placeholder="${ph}" onchange="setBcy('${k}',${y},this.value)" style="width:110px;text-align:right">`;
+ const used=y=>bcyVeh(P,y),sUsed=y=>so[y]!=null?num(so[y]):(y<=last?num((P.rows.net||{})[y]):NaN);
+ return `<div class="card" style="margin-bottom:12px"><h3 style="margin:0 0 6px">Volume drivers (vehicles per year) and net sales</h3>
+ <p class="sub" style="margin:0 0 8px">The product volumes of the console correspond to <b>${fm(ref,0)} vehicles / year</b> (reference); each year they are scaled by vehicles ÷ reference. Type the figures of your turnover sheet (empty = value of the Business Case file) or paste the Excel row (tab separated). <b>Implied € per vehicle</b> = net sales ÷ vehicles: it must match the turnover sheet.</p>
+ <div style="overflow-x:auto"><table style="border-collapse:collapse"><tr><th style="text-align:left;padding:4px 8px">Year</th>${ys.map(y=>`<th class="n" style="padding:4px 8px">${y}${y>last?" *":""}</th>`).join("")}</tr>
+ <tr style="color:#6b7590;font-size:12px"><td style="padding:3px 8px">Vehicles · Business Case file</td>${ys.map(y=>`<td class="n" style="padding:3px 8px">${y<=last?fm(num(P.veh[y]),0):"—"}</td>`).join("")}</tr>
+ <tr><td style="padding:3px 8px"><b>Vehicles · used</b></td>${ys.map(y=>`<td class="n" style="padding:3px 8px">${inp("vOv",y,y<=last?fm(num(P.veh[y]),0):"")}</td>`).join("")}</tr>
+ <tr style="color:#6b7590;font-size:12px"><td style="padding:3px 8px">Net sales · Business Case file</td>${ys.map(y=>`<td class="n" style="padding:3px 8px">${y<=last?fm(num((P.rows.net||{})[y]),0):"—"}</td>`).join("")}</tr>
+ <tr><td style="padding:3px 8px"><b>Net sales · used</b> (Business Case basis)</td>${ys.map(y=>`<td class="n" style="padding:3px 8px">${inp("sOv",y,y<=last?fm(num((P.rows.net||{})[y]),0):"")}</td>`).join("")}</tr>
+ <tr style="font-weight:700"><td style="padding:3px 8px">Implied € per vehicle</td>${ys.map(y=>{const v=used(y),s0=sUsed(y);return `<td class="n" style="padding:3px 8px">${v>0&&isFinite(s0)?fm(s0/v,2):"—"}</td>`}).join("")}</tr></table></div>
+ <div class="row" style="margin-top:8px;gap:14px"><label>Reference vehicles <input type="text" value="${B.refVeh||""}" placeholder="${fm(ref,0)}" onchange="setBcyRef(this.value)" style="width:110px;text-align:right"></label>
+  <label style="display:flex;gap:6px;align-items:center"><input type="checkbox" style="width:auto;min-width:0" ${B.extend?"checked":""} onchange="setBcyExt(this.checked)"> add the years after ${last} (*) to the P&amp;L, repeating the ${last} Business Case costs</label></div>
+ <div class="row" style="margin-top:8px;align-items:flex-start;gap:12px"><label style="flex:1">Paste the “Vehicles / year” row
+   <textarea id="bcyPaste_vOv" rows="2" style="width:100%" placeholder="0	0	105.805	170.000	163.480	183.000	183.000"></textarea></label>
+  <label style="flex:1">Paste the “Net sales” row
+   <textarea id="bcyPaste_sOv" rows="2" style="width:100%" placeholder="0	0	8.300.000	13.600.000	13.400.000	15.000.000	15.000.000"></textarea></label>
+  <label>first year <input id="bcyStart" type="text" value="${B.years[0]}" style="width:70px"></label></div>
+ <div class="row" style="margin-top:6px"><button class="btn sec" onclick="bcyPaste('vOv')">Apply vehicles</button><button class="btn sec" onclick="bcyPaste('sOv')">Apply net sales</button><button class="btn sec" onclick="S.bcy.vOv={};S.bcy.sOv={};CAL={};save();render(true)">Back to the Business Case file values</button></div>
+ <p class="sub" style="margin:6px 0 0">* Years after ${last} are not in the Business Case file: costs are repeated from ${last} only if the box above is ticked.</p></div>`}
+function bcyModel(pl){const B=S.bcy,src=pl==="TNG"?"TNG":"ZGZ",P=B.plants[src],ys=bcyYears(),last=B.years[B.years.length-1],all=bcyBasis==="bc"?true:plAll,D=plData(pl,"ALL",all),vref=bcyRef(P);
  let dDep=0,dFix=0,dInd=0;if(pl==="TNA"){dDep=D.dep-plData("ZGZ","ALL",all).dep;const a=burdenCalc("TNA"),z=burdenCalc("ZGZ");dFix=a.t.BURDEN-z.t.BURDEN;dInd=a.t.GA-z.t.GA}
- const cols=ys.map(y=>{const R=k=>num((P.rows[k]||{})[y]),veh=num(P.veh[y]),f=veh/vref,c={y,veh,f};
-  c.sales=bcyBasis==="bc"?R("net"):D.rev*f;c.mat=(D.mat+D.mscr)*f;c.dp=D.dl*f;c.cm1=c.sales-c.mat-c.dp;c.varc=(D.en+D.mnt+D.scrap+D.log)*f;c.cm2=c.cm1-c.varc;
+ const cols=ys.map(y=>{const inBC=B.years.includes(y),yy=inBC?y:last,R=k=>num((P.rows[k]||{})[yy]),veh=bcyVeh(P,y),f=veh/vref,c={y,veh,f,ext:!inBC,vref};
+  const so=(B.sOv||{})[y],bcSales=so!=null?num(so):R("net");
+  c.sales=bcyBasis==="bc"?bcSales:D.rev*f;c.mat=(D.mat+D.mscr)*f;c.dp=D.dl*f;c.cm1=c.sales-c.mat-c.dp;c.varc=(D.en+D.mnt+D.scrap+D.log)*f;c.cm2=c.cm1-c.varc;
   c.fixed=R("fixed")+(veh>0?dFix:0);c.ind=R("ind")+(veh>0?dInd:0);c.mp=c.cm2-c.fixed-c.ind;c.sub=R("sub");
-  c.hq=P.hqRate&&P.hqRate[y]!=null?num(P.hqRate[y])*c.sales:R("hq");c.ebitda=c.mp+c.sub-c.hq;c.da=R("da")+(R("da")>0?dDep:0);c.ebit=c.ebitda-c.da;c.fin=R("fin");c.ebt=c.ebit-c.fin;
-  c.tax=c.ebt>0?c.ebt*num((P.taxRate||{})[y]):0;c.net=c.ebt-c.tax;
-  c.ref={net:R("net"),ebitda:R("ebitda"),ebit:R("ebit"),netinc:R("netinc")};return c});
- return{cols,src,B}}
+  c.hq=P.hqRate&&P.hqRate[yy]!=null?num(P.hqRate[yy])*c.sales:R("hq");c.ebitda=c.mp+c.sub-c.hq;c.da=R("da")+(R("da")>0?dDep:0);c.ebit=c.ebitda-c.da;c.fin=R("fin");c.ebt=c.ebit-c.fin;
+  c.tax=c.ebt>0?c.ebt*num((P.taxRate||{})[yy]):0;c.net=c.ebt-c.tax;
+  c.ref=inBC?{net:R("net"),ebitda:R("ebitda"),ebit:R("ebit"),netinc:R("netinc")}:{net:NaN,ebitda:NaN,ebit:NaN,netinc:NaN};return c});
+ return{cols,src,B,vref}}
 const bcyV=(c,k)=>k==="net"||k==="sales"?c.sales:k==="netinc"?c.net:c[k];
 function bcyBlock(pl){const M=bcyModel(pl),cols=M.cols,col={TNG:"#c2410c",ZGZ:"#1d4ed8",TNA:"#047857"}[pl],B=S.bcy,n=cols.length;
  const tot=k=>cols.reduce((a,c)=>a+bcyV(c,k),0),totS=cols.reduce((a,c)=>a+c.sales,0);
  let rows="";
- rows+=`<tr style="color:#6b7590;font-size:12px"><td style="padding:3px 9px">Vehicles / year (Business Case volume driver) · volume factor vs ${B.ref}</td>${cols.map(c=>`<td class="n" style="padding:3px 9px">${fm(c.veh,0)}<br>${fp(c.f)}</td>`).join("")}<td></td></tr>`;
+ rows+=`<tr style="color:#6b7590;font-size:12px"><td style="padding:3px 9px">Vehicles / year · volume factor vs ${fm(M.vref,0)} reference vehicles</td>${cols.map(c=>`<td class="n" style="padding:3px 9px">${fm(c.veh,0)}<br>${fp(c.f)}</td>`).join("")}<td></td></tr>`;
  for(const [k,l,st,pl2] of BC_ROWS){const sty=BC_ST[st]||"",lbl=k==="tax"?"Corporate Tax":l;
   rows+=`<tr style="${sty}"><td style="padding:5px 9px">${lbl}</td>${cols.map(c=>`<td class="n" style="padding:5px 9px">${bcF(bcyV(c,k))}</td>`).join("")}<td class="n" style="padding:5px 9px;border-left:2px solid #cbd5e1">${bcF(tot(k))}</td></tr>`;
   if(pl2)rows+=`<tr style="color:#b91c1c;font-style:italic;font-size:12px"><td style="padding:2px 9px 2px 22px">${pl2}</td>${cols.map(c=>`<td class="n" style="padding:2px 9px">${c.sales?fp(bcyV(c,k)/c.sales):"—"}</td>`).join("")}<td class="n" style="padding:2px 9px;border-left:2px solid #cbd5e1">${totS?fp(tot(k)/totS):"—"}</td></tr>`}
- const memo=(l,f)=>`<tr style="color:#6b7590;font-size:12px;font-style:italic"><td style="padding:3px 9px">${l}</td>${cols.map(c=>`<td class="n" style="padding:3px 9px">${bcF(f(c))}</td>`).join("")}<td class="n" style="padding:3px 9px;border-left:2px solid #cbd5e1">${bcF(cols.reduce((a,c)=>a+f(c),0))}</td></tr>`;
+ const memo=(l,f)=>`<tr style="color:#6b7590;font-size:12px;font-style:italic"><td style="padding:3px 9px">${l}</td>${cols.map(c=>`<td class="n" style="padding:3px 9px">${bcF(f(c))}</td>`).join("")}<td class="n" style="padding:3px 9px;border-left:2px solid #cbd5e1">${bcF(cols.reduce((a,c)=>a+(isFinite(f(c))?f(c):0),0))}</td></tr>`;
  rows+=`<tr><td colspan="${n+2}" style="padding:6px 9px 2px;font-size:11.5px;font-weight:700;color:#6b7590;border-top:2px solid #cbd5e1">Business Case reference (${PN[M.src]} · ${esc(B.file||"")})</td></tr>`
   +memo("memo · BC Net sales",c=>c.ref.net)+memo("memo · BC EBITDA",c=>c.ref.ebitda)+memo("memo · BC EBIT",c=>c.ref.ebit)+memo("memo · Δ EBIT console − BC",c=>c.ebit-c.ref.ebit)+memo("memo · BC Net income",c=>c.ref.netinc);
  return `<div style="margin-bottom:24px"><div class="row" style="border-left:6px solid ${col};padding-left:10px;margin-bottom:6px"><h3 style="margin:0;font-size:16px;color:${col}">${PN[pl]}</h3><span class="sub" style="margin:0">${pl==="TNA"?"Zaragoza Business Case + the differences of the automated line (materials, labour, variable cost, depreciation, overhead pools)":"cost lines of the products from the console · fixed costs, D&A, fee, subsidies and financing from the Business Case"}</span></div>
- <div style="overflow-x:auto"><table style="min-width:980px;border-collapse:collapse;width:100%"><tr style="background:#3a4a2b;color:#fff"><th style="padding:6px 9px;text-align:left;background:#3a4a2b;color:#fff">EUR</th>${cols.map(c=>`<th class="n" style="padding:6px 9px;background:#3a4a2b;color:#fff">${c.y}</th>`).join("")}<th class="n" style="padding:6px 9px;background:#3a4a2b;color:#fff">Total ${cols[0].y}-${cols[n-1].y}</th></tr>${rows}</table></div></div>`}
+ <div style="overflow-x:auto"><table style="min-width:980px;border-collapse:collapse;width:100%"><tr style="background:#3a4a2b;color:#fff"><th style="padding:6px 9px;text-align:left;background:#3a4a2b;color:#fff">EUR</th>${cols.map(c=>`<th class="n" style="padding:6px 9px;background:#3a4a2b;color:#fff">${c.y}${c.ext?" *":""}</th>`).join("")}<th class="n" style="padding:6px 9px;background:#3a4a2b;color:#fff">Total ${cols[0].y}-${cols[n-1].y}</th></tr>${rows}</table></div></div>`}
 function pageBCYears(){const has=!!S.bcy;
  const loader=`<div class="card" style="border:2px solid ${has?"var(--line)":"var(--acc)"};margin-bottom:12px"><h3 style="margin:0 0 6px">Business Case data by year</h3><p class="sub" style="margin:0 0 8px">Load the Business Case Excel (“BC CX735 Spain vs Morocco comparison”). The file is read in your browser: from the sheets <b>INPUT / ES_INPUT</b> (vehicles per year, HQ fee %, tax rate) and <b>P&amp;L_FORD / ES_P&amp;L_FORD</b> (net sales, fixed cost, indirect/admin cost, D&amp;A, subsidies, financing and the Business Case results by year) for Tangier and Zaragoza. ${has?`Loaded: <b>${esc(S.bcy.file||"")}</b>, years ${S.bcy.years[0]}-${S.bcy.years[S.bcy.years.length-1]}.`:"<b>Nothing loaded yet.</b>"}</p>
   <div class="row"><input type="file" accept=".xlsx,.xlsm" onchange="bcyLoadFile(this)" style="width:auto"></div>${BCYMSG?`<p class="sub" style="margin:8px 0 0;font-weight:700;color:${BCYMSG.startsWith("⚠")?"#b91c1c":"#15803d"}">${esc(BCYMSG)}</p>`:""}</div>`;
  if(!has)return loader+`<p class="sub">Until the data are loaded, use “Steady state” above.</p>`;
- return loader+`<div style="background:#ffff66;text-align:center;font-weight:800;font-size:19px;padding:8px;border-radius:8px;margin:6px 0 14px">P&amp;L with assumptions · year by year · EUR</div>
+ return loader+bcyDrivers()+`<div style="background:#ffff66;text-align:center;font-weight:800;font-size:19px;padding:8px;border-radius:8px;margin:6px 0 14px">P&amp;L with assumptions · year by year · EUR</div>
  ${PL.map(bcyBlock).join("")}
- <p class="sub"><b>How each year is built.</b> <b>Volumes:</b> every product volume of the console (the ${S.bcy.ref} level) is scaled by the Business Case vehicles of the year (vehicles ÷ ${S.bcy.ref} vehicles). <b>Material cost, Direct Personnel and Variable cost</b> (energy + maintenance + plant scrap + logistics) are the console cost per piece × the scaled volume; labour and maintenance are treated as proportional to volume (the Business Case has a fixed headcount during the ramp-up, so the early years differ). <b>Fixed cost, Indirect/Admin, subsidies, financing and D&amp;A</b> are the Business Case figures of the year; the <b>HQ fee</b> is the Business Case % × net sales; <b>tax</b> = Business Case rate on positive EBT. <b>Net sales</b> follow the selected basis. <b>Automated scenario:</b> Zaragoza Business Case figures plus the differences generated in the console (machine depreciation, overhead pool edits) from the first year with production. The rows at the bottom of each block are the Business Case results, to compare.</p>
+ <p class="sub"><b>How each year is built.</b> <b>Volumes:</b> every product volume of the console (the regime level, ${fm(bcyRef(S.bcy.plants.TNG),0)} vehicles) is scaled by the vehicles of the year (vehicles ÷ reference), as set in the table above. <b>Material cost, Direct Personnel and Variable cost</b> (energy + maintenance + plant scrap + logistics) are the console cost per piece × the scaled volume; labour and maintenance are treated as proportional to volume (the Business Case has a fixed headcount during the ramp-up, so the early years differ). <b>Fixed cost, Indirect/Admin, subsidies, financing and D&amp;A</b> are the Business Case figures of the year; the <b>HQ fee</b> is the Business Case % × net sales; <b>tax</b> = Business Case rate on positive EBT. <b>Net sales</b> follow the selected basis. <b>Automated scenario:</b> Zaragoza Business Case figures plus the differences generated in the console (machine depreciation, overhead pool edits) from the first year with production. The rows at the bottom of each block are the Business Case results, to compare.</p>
  <div class="row"><button class="btn sec" data-ok="1" onclick="bcCSV()">⬇ Export (CSV)</button><button class="btn sec" data-ok="1" onclick="bcPDF()">⬇ PDF (one page per plant)</button></div>`}
-function bcCSVy(){const rows=[["Plant","Line"].concat(S.bcy.years,["Total"])];
+function bcCSVy(){const rows=[["Plant","Line"].concat(bcyYears(),["Total"])];
  for(const pl of PL){const M=bcyModel(pl),cols=M.cols;for(const [k,l] of BC_ROWS){const v=cols.map(c=>bcyV(c,k));rows.push([PN[pl],l].concat(v.map(x=>Math.round(x)),[Math.round(v.reduce((a,b)=>a+b,0))]));}
   for(const [lb,f] of [["BC Net sales",c=>c.ref.net],["BC EBITDA",c=>c.ref.ebitda],["BC EBIT",c=>c.ref.ebit]]){const v=cols.map(f);rows.push([PN[pl],"memo · "+lb].concat(v.map(x=>Math.round(x)),[Math.round(v.reduce((a,b)=>a+b,0))]))}}
  const a=document.createElement("a");a.href=URL.createObjectURL(new Blob(["﻿"+rows.map(r=>r.map(x=>`"${String(x).replace(/"/g,'""')}"`).join(";")).join("\n")],{type:"text/csv"}));a.download="PL_year_by_year.csv";a.click()}
