@@ -70,7 +70,7 @@ code{background:#eef1f7;padding:1px 5px;border-radius:4px;font-size:12.5px}
 li{margin:4px 0}
 @media(max-width:860px){body{flex-direction:column}aside{width:100%;height:auto;position:static;flex-direction:row;flex-wrap:wrap}.logo{display:none}aside .grow,aside .mini,aside .tools{display:none}main,.top{padding:14px}}
 .wy{background:#fef9c3!important}.wo{background:#fed7aa!important}.fl{display:inline-block;margin-left:6px;font-size:11px;font-weight:700;border-radius:99px;padding:0 6px;cursor:help;line-height:16px}.fl.y{background:#fde047;color:#713f12}.fl.o{background:#fb923c;color:#431407}.navb{margin-left:auto;font-size:11px;font-weight:700;border-radius:99px;padding:0 7px;background:#fb923c;color:#431407}.navb.y{background:#fde047;color:#713f12}
-table.tw th,table.tw td{white-space:normal;padding:6px 7px}table.tw th{vertical-align:bottom;line-height:1.2}table.tw td.nw{white-space:nowrap}
+table.tw th,table.tw td{white-space:normal;padding:6px 7px}table.tw th{vertical-align:bottom;line-height:1.2}table.tw td.nw{white-space:nowrap}table.mcT{min-width:1700px}table.mcT input,table.mcT select{min-width:0;padding:5px 6px;font-size:12.5px}
 .hid{display:none!important}#login{width:380px;max-width:92vw;align-self:flex-start;margin:12vh auto;background:#fff;border:1px solid var(--line);border-radius:16px;padding:28px;box-shadow:0 10px 40px #0f1b3320}#login h2{font-size:20px;margin-bottom:14px}#login label{display:block;margin:12px 0 4px;color:var(--mut);font-size:12.5px}#login .btn{width:100%;margin-top:18px;padding:10px}#l_e{color:var(--bad);margin-top:10px;min-height:20px;font-size:13px}#app{display:flex;flex:1;min-width:0}#login .lg{width:240px;max-width:100%;display:block;margin:0 0 18px}.lgbox{background:#fff;border-radius:10px;padding:10px 12px;margin-bottom:8px}.lgbox img{width:100%;display:block}.logo span{display:block;margin-top:6px}
 </style>
 </head>
@@ -104,9 +104,10 @@ table.tw th,table.tw td{white-space:normal;padding:6px 7px}table.tw th{vertical-
 <script>
 /* ======================= EMPTY STATE (no company data in the code) ======================= */
 const PL=["TNG","ZGZ"],PN={TNG:"Tangier",ZGZ:"Zaragoza",TNA:"Zaragoza FX350 automated"},PCLS={TNG:"t",ZGZ:"z",TNA:"a"},PVAR={TNG:"tng",ZGZ:"zgz",TNA:"tna"},PTAB={TNG:"T",ZGZ:"Z",TNA:"A"};
+const MATP0=()=>({scrap:.02,moh:.02,eurMad:10.88,gbpPerEur:.87,scrapOnConv:true});
 const FLAGS=()=>({dep:false,maint:false,energy:false,cassa:false,indirect:false,burdenManual:false});
 const P0=()=>({days:248,opDays:248,shifts:3,hoursShift:8,paidHours:1744,pause:0,grossYear:0,social:0,energyPrice:0,energyUse:.75,maintPct:.577,burden:0,cassa:0,oee:.85,scrap:.03,ga:.08,profit:.08,produttivita:0,imposte:0,depExcl:false,burdenMode:"manual",maintMode:"manual"});
-function build(){return{name:"ADLER product cost",plants:{TNG:{name:"Tangier",params:P0(),flags:FLAGS(),machines:[],dlBase:0,items:[]},ZGZ:{name:"Zaragoza",params:P0(),flags:FLAGS(),machines:[],dlBase:0,items:[]}},materials:[],products:[],notes:{},guide:{excel:[],points:[]},check:null,alignZ:false,alignBasis:"pool",recovery:false}}
+function build(){return{name:"ADLER product cost",plants:{TNG:{name:"Tangier",params:P0(),flags:FLAGS(),machines:[],dlBase:0,items:[]},ZGZ:{name:"Zaragoza",params:P0(),flags:FLAGS(),machines:[],dlBase:0,items:[]}},materials:[],products:[],notes:{},guide:{excel:[],points:[]},check:null,alignZ:false,alignBasis:"pool",recovery:false,matp:MATP0()}}
 /* fonti per parametro: [chiave, etichetta, UM, fonte Tangeri, fonte Zaragoza, nota] */
 const SRC={BC:["Business case","b-bc"],AD:["Adler file","b-ad"],ES:["Estimate · to validate","b-es"],DE:["Calculated","b-de"]};
 const NOTE=k=>(S.notes&&S.notes[k])||["ES","ES",""];
@@ -124,7 +125,7 @@ let S=build();
 const TNA_LINK=["grossYear","social","opDays","paidHours","pause","cassa","energyPrice","energyUse"];
 function linkProps(o,keys,src){for(const k of keys){const d=Object.getOwnPropertyDescriptor(o,k);if(d&&d.get)continue;Object.defineProperty(o,k,{configurable:true,enumerable:false,get:()=>src()[k],set:()=>{}})}}
 const tnaOn=()=>!!(S.plants&&S.plants.TNA&&S.plants.TNA.active);
-function fixS(){const want=tnaOn()?["TNG","ZGZ","TNA"]:["TNG","ZGZ"];if(PL.join()!==want.join()){PL.length=0;PL.push(...want)}
+function fixS(){if(!S.matp)S.matp=MATP0();const want=tnaOn()?["TNG","ZGZ","TNA"]:["TNG","ZGZ"];if(PL.join()!==want.join()){PL.length=0;PL.push(...want)}
  if(!tnaOn())return;const A0=S.plants.TNA;if(A0.base!=="ZGZ"){const cl=x=>JSON.parse(JSON.stringify(x)),Z0=S.plants.ZGZ;A0.params=cl(Z0.params);A0.flags=cl(Z0.flags);A0.items=cl(Z0.items||[]);A0.dlBase=Z0.dlBase;A0.ownLabour=false;A0.base="ZGZ"}
  if(!A0.ownLabour)linkProps(A0.params,TNA_LINK,()=>S.plants.ZGZ.params);
  for(const p of S.products){if(!p.v.TNA)p.v.TNA={ops:[]};linkProps(p.v.TNA,["volume","price","logistic"],()=>p.v.ZGZ)}}
@@ -184,15 +185,39 @@ function opCalc(o,pl,st=S){const P=st.plants[pl].params,F=st.plants[pl].flags,D=
  const heads=hasCrew?num(o.crew):(m?num(m.workers):num(o.cav));
  return{L,rate,N:f*rate,G,I,M,R,T,nG:f*G,nI:f*I,nM:f*M,nR:f*R,nT:f*T,heads,hasCrew,mname:m?m.name:"Manual DL",gu:mr?mr.gu:0,carry:!!m||!!F.burdenManual}}
 function pcalc(p,pl,st=S){const P=st.plants[pl].params,D=derived(P),v=p.v[pl],c={bomRows:[],opRows:[],mat:0,conv:0};
- for(const b of p.bom){const m=st.materials.find(x=>x.id===b.matId);const r=m?num(m.cost[pl==='TNA'?'ZGZ':pl])*num(b.qty):0;c.bomRows.push(r);c.mat+=r}
+ const mcx=mcOn(p);if(mcx){const m=mcCalc(p.mc,st);c.mcRows=m.rows;c.mat=m.total;c.matNet=m.mat;c.matScrap=m.scrap;c.matMoh=m.moh}else for(const b of p.bom){const m=st.materials.find(x=>x.id===b.matId);const r=m?num(m.cost[pl==='TNA'?'ZGZ':pl])*num(b.qty):0;c.bomRows.push(r);c.mat+=r}
  c.cG=c.cI=c.cM=c.cR=c.cT=0;c.heads=0;c.dlMin=0;
  for(const o of v.ops){const r=opCalc(o,pl,st);c.opRows.push(r);c.conv+=r.N;c.cG+=r.nG;c.cI+=r.nI;c.cM+=r.nM;c.cR+=r.nR;c.cT+=r.nT;c.heads+=r.heads;c.dlMin+=r.heads*r.L/60}
- c.sub=c.mat+c.conv;c.scrap=c.sub*num(P.scrap);c.log=num(v.logistic);c.ic=c.sub+c.scrap+c.log;
+ c.sub=c.mat+c.conv;c.scrap=((mcx&&mpOf(st).scrapOnConv)?c.conv:c.sub)*num(P.scrap);c.log=num(v.logistic);c.ic=c.sub+c.scrap+c.log;
  const recOn=!!st.recovery&&!(st._cal&&st._cal[pl]);c.gaA=recOn?calib(pl,st).gaRate*c.ic:0;
  const mk=num(P.profit)+(st.recovery?0:num(P.ga))+num(P.produttivita)+num(P.imposte);c.mk=mk;c.calc=(c.ic+c.gaA)/(1-mk);c.markup=c.calc-c.ic;
  const sp=num(v.price);c.hasPrice=sp>0;c.margin=sp>0?sp-c.ic:NaN;c.marginPct=sp>0?c.margin/sp:NaN;
  c.afterGA=sp>0?c.margin-(st.recovery?c.gaA:sp*num(P.ga)):NaN;c.afterGApct=sp>0?c.afterGA/sp:NaN;c.beGA=st.recovery?c.ic+c.gaA:c.ic/(1-num(P.ga));c.matShare=c.calc?c.mat/c.calc:NaN;
- c.complete=v.ops.length>0&&p.bom.length>0;return c}
+ c.complete=v.ops.length>0&&(mcx?p.mc.lines.length>0:p.bom.length>0);return c}
+
+/* ======================= MATERIAL COST CARD (BOM valued line by line) ======================= */
+function mpOf(st){return st.matp||MATP0()}
+function mcCalc(mc,st=S){const M=mpOf(st),gbp=num(M.gbpPerEur)||1,mad=num(M.eurMad)||1,rows=[];let mat=0;
+ for(const l of (mc.lines||[])){const px=num(l.price),cur=l.cur||"EUR",pe=cur==="GBP"?px/gbp:cur==="MAD"?px/mad:px,pc=pe*num(l.pcPct),cost=num(l.qty)*(pe+pc);
+  const area=(num(l.w)>0&&num(l.h)>0)?num(l.w)*num(l.h)/1e6:0,sheet=(l.unit==="sheet"&&num(l.qty)>0);
+  rows.push({pe,pc,cost,area,perM2:area>0?pe/area:NaN,parts:sheet?1/num(l.qty):NaN});mat+=cost}
+ const scrap=mat*num(M.scrap),moh=(mat+scrap)*num(M.moh);return{rows,mat,scrap,moh,total:mat+scrap+moh}}
+function legacyMat(p,pl="ZGZ",st=S){let r=0;for(const b of p.bom||[]){const m=st.materials.find(x=>x.id===b.matId);r+=m?num(m.cost[pl])*num(b.qty):0}return r}
+function mcOn(p){return !!(p.mc&&p.mc.on!==false&&p.mc.lines)}
+function matInfo(p,st=S){const lg=legacyMat(p,"ZGZ",st);if(!mcOn(p))return{card:false,net:lg,scrap:0,moh:0,total:lg,legacy:lg};const m=mcCalc(p.mc,st);return{card:true,net:m.mat,scrap:m.scrap,moh:m.moh,total:m.total,legacy:lg}}
+function mcSupplier(src){const s=String(src||"").trim();if(!s)return{supplier:"",basis:"",date:""};
+ const m=s.match(/^(\d{4}(?:-\d{2}(?:-\d{2})?)?)\s+(.*)$/),date=m?m[1]:"",rest=m?m[2]:s;let x;
+ if(/^standard cost/i.test(rest))return{supplier:"Standard cost",basis:"Standard",date};
+ if(/^estimation based on/i.test(rest))return{supplier:"",basis:"Estimate",date};
+ if((x=rest.match(/^estimation\s+(\S+)/i)))return{supplier:x[1],basis:"Estimate",date};
+ if((x=rest.match(/^(\S+)\s+estimation/i)))return{supplier:x[1],basis:"Estimate",date};
+ x=rest.match(/^([^\s(]+)/);return{supplier:x?x[1]:"",basis:"Quote",date}}
+function mcDims(code){const m=String(code||"").match(/(\d{3,4})\*(\d{3,4})/);return m?{w:+m[1],h:+m[2]}:{w:0,h:0}}
+const nzc=x=>String(x||"").toUpperCase().replace(/[^A-Z0-9]/g,"");
+function mcGuess(part,taken){let best="",bs=0;for(const p of S.products){if(taken.has(p.id))continue;const a=nzc(part.pn),b=nzc(p.code),da=nzc(part.desc),db=nzc(p.desc);let sc=0;
+  if(a.length>5&&b){if(a===b)sc=100;else if(b.startsWith(a)||a.startsWith(b))sc=90}
+  if(!sc&&da&&da===db)sc=80;if(!sc&&da.length>=5&&db.includes(da))sc=50;
+  if(sc>bs){bs=sc;best=p.id}}return best}
 
 /* ======================= UTILITÀ UI ======================= */
 function setPath(path,v){CAL={};const k=path.split(".");let o=S;for(let i=0;i<k.length-1;i++)o=o[k[i]];o[k[k.length-1]]=v;save();refresh()}
@@ -240,6 +265,13 @@ function allChecks(st=S){const L=[],add=(l,pl,area,msg,page,prod)=>L.push({l,pl,
    const wp=pl==='TNA'?null:wPrice(pr,pl);if(wp)add(wp.l,pl,"Product · "+nm,wp.m,"pd",pr.id);
    const wm=wMargin(c);if(wm)add(wm.l,pl,"Product · "+nm,"Negative margin: "+fp(c.marginPct)+" of price","pd",pr.id);
    v.ops.forEach((o,i)=>{for(const w of ["crew","cycle","eff"]){const r=wOpRaw(pr,pl,i,w,st);if(r)add(r.l,pl,"Product · "+nm+" · "+o.desc,r.m,"pd",pr.id)}})})}
+ {const M=mpOf(st),cards=st.products.filter(mcOn);
+  for(const pr of cards){const nm=pr.code+" · "+pr.desc,m=mcCalc(pr.mc,st);let e=0,ec=0;
+   pr.mc.lines.forEach((l,i)=>{if(l.basis==="Estimate"){e++;ec+=m.rows[i].cost}if(!(num(l.price)>0))add("y",null,"Materials · "+nm,"Price missing on line “"+(l.desc||l.code)+"”","pd",pr.id);if(!(num(l.qty)>0))add("y",null,"Materials · "+nm,"Quantity missing on line “"+(l.desc||l.code)+"”","pd",pr.id)});
+   if(e)add("y",null,"Materials · "+nm,e+" of "+pr.mc.lines.length+" lines are estimated prices ("+fp(ec/(m.mat||1))+" of the material cost)","pd",pr.id);
+   const ref=pr.mc.ref;if(ref){if(ref.total&&Math.abs(m.total/ref.total-1)>.0005)add("y",null,"Materials · "+nm,"Material cost "+fm(m.total,4)+" differs from the imported file ("+fm(ref.total,4)+"): the card was edited","pd",pr.id);
+    if(nzc(ref.pn)&&nzc(ref.pn)!==nzc(pr.code)&&!nzc(pr.code).startsWith(nzc(ref.pn)))add("y",null,"Materials · "+nm,"Part number in the BOM file ("+ref.pn+") differs from the console code ("+pr.code+")","pd",pr.id)}}
+  if(cards.length&&!M.scrapOnConv)add("y",null,"Materials","Plant scrap % is also charged on materials: material scrap is counted twice (card + plant scrap)","mat")}
  L.sort((a,b)=>(a.l==="o"?0:1)-(b.l==="o"?0:1));return L}
 function gotoChk(i){const x=allChecks()[i];if(!x)return;if(x.pl){bpl=x.pl;mpl=x.pl;tab=x.pl}if(x.prod)selProd=x.prod;go(x.page)}
 function pageChk(){const L=allChecks(),o=L.filter(x=>x.l==="o").length,y=L.length-o;
@@ -249,7 +281,7 @@ function pageChk(){const L=allChecks(),o=L.filter(x=>x.l==="o").length,y=L.lengt
 const PAGES=[["dash","▦","Overview"],["inp","⚙","Basic inputs"],["bur","⚖","Burden & rates"],["mr","🏭","Machines & processes"],["mat","▤","Materials"],["prd","📦","Products"],["brg","🌉","Why Zaragoza costs more"],["chk","⚠","Data checks"],["gui","✔","Guide & checks"]];
 function render(keep){CAL={};fixS();document.getElementById('bTNA').classList.toggle('hid',!tnaOn());
  const CK=allChecks(),nO=CK.filter(x=>x.l==="o").length,nY=CK.length-nO;document.getElementById("nav").innerHTML=PAGES.map(([k,i,t])=>`<button class="nv ${(page===k||(page==="pd"&&k==="prd"))?"on":""}" onclick="go('${k}')"><span>${i}</span>${t}${k==="chk"&&CK.length?`<span class="navb ${nO?"":"y"}" title="${nO} anomalies, ${nY} to verify">${nO?nO+"⚠":nY}</span>`:""}</button>`).join("");
- const T={dash:"Overview · Tangier vs Zaragoza"+(tnaOn()?" vs "+PN.TNA:""),inp:"Basic inputs",bur:"Burden split & hourly rates",mr:"Machines & processes · machine rate",mat:"Materials master",prd:"Products",pd:"Product sheet",gui:"Guide & checks",chk:"Data checks",brg:"Bridge · why the costs differ"};
+ const T={dash:"Overview · Tangier vs Zaragoza"+(tnaOn()?" vs "+PN.TNA:""),inp:"Basic inputs",bur:"Burden split & hourly rates",mr:"Machines & processes · machine rate",mat:"Material cost",prd:"Products",pd:"Product sheet",gui:"Guide & checks",chk:"Data checks",brg:"Bridge · why the costs differ"};
  document.getElementById("title").textContent=T[page];
  const pre=(page==="dash"||page==="brg")?alignSwitch()+recSwitch():(page==="bur"&&bpl==="CMP")?alignSwitch():alignBanner();document.getElementById("main").innerHTML=pre+{dash:pageDash,inp:pageInp,bur:pageBur,chk:pageChk,brg:pageBrg,mr:pageMR,mat:pageMat,prd:pagePrd,pd:pagePD,gui:pageGui}[page]();refresh();if(readonly())document.querySelectorAll("#main input,#main select,#main button.btn:not([data-ok])").forEach(e=>e.disabled=true);if(!keep)window.scrollTo(0,0)}
 function go(k){page=k;render()}
@@ -269,6 +301,66 @@ function openPaste(){const b=document.getElementById("pastebox");b.classList.rem
 function closePaste(){document.getElementById("pastebox").classList.add("hid")}
 function doPaste(){if(readonly()){alert("Read-only account");return}try{const x=JSON.parse(document.getElementById("pastetxt").value);if(!x.plants||!x.products)throw 0;if(API&&Object.keys(REM).length&&!confirm("The database already contains data: the import REPLACES it for everyone. Continue?"))return;S=Object.assign(build(),x);selProd=null;loaded=true;closePaste();save();go("dash")}catch(e){alert("Invalid JSON text")}}
 function loadJSON(el){const f=el.files[0];if(!f)return;if(readonly()){alert("Read-only account");return}const r=new FileReader();r.onload=()=>{try{const x=JSON.parse(r.result);if(!x.plants||!x.products)throw 0;if(API&&Object.keys(REM).length&&!confirm("The database already contains data: the import REPLACES it for everyone. Continue?"))return;S=Object.assign(build(),x);selProd=null;loaded=true;save();go("dash")}catch(e){alert("Invalid file")}};r.readAsText(f);el.value=""}
+
+/* ---------- material cost card: UI ---------- */
+const MCR=ix=>mcCalc(S.products[ix].mc);
+function wLineEst(ix,i){const l=S.products[ix].mc.lines[i];if(l.basis==="Estimate")return FW("y","Price is an estimate: "+(l.source||"no source"));if(!(num(l.price)>0))return FW("y","Price missing");return null}
+function mcNewLine(ix){S.products[ix].mc.lines.push({id:nid("l"),code:"",desc:"New material",unit:"pc",supplier:"",basis:"Estimate",source:"",qty:1,price:0,cur:"EUR",inco:"FCA",pcPct:0,w:0,h:0});save();render()}
+function mcCreate(ix){const p=S.products[ix];p.mc={on:true,lines:[]};save();render()}
+function mcToggle(ix,on){S.products[ix].mc.on=on;CAL={};save();render()}
+function mcCard(ix,pl){const p=S.products[ix];
+ if(!p.mc||!p.mc.lines)return `<div class="card"><h2>1 · Material cost</h2><p class="sub">This product has no detailed material cost card: the cost uses the simple bill of materials below (one cost per piece). Import the material BOM in the Materials page, or start an empty card here.</p><div class="row"><button class="btn sec" onclick="mcCreate(${ix})">+ Start a detailed cost card</button></div></div>`;
+ const b=`products.${ix}.mc.`,R=`MCR(${ix})`,on=p.mc.on!==false,M=mpOf(S);
+ let s=`<div class="card"><div class="row" style="justify-content:space-between"><h2 style="margin:0">1 · Material cost card (line by line)</h2><label style="display:flex;gap:8px;align-items:center;font-size:12.5px"><input type="checkbox" style="width:auto;min-width:0" ${on?"checked":""} onchange="mcToggle(${ix},this.checked)"> use this card in the cost</label></div>
+ <p class="sub">Shared by all the versions of this product (the same material prices in every plant). <b>Cost / part = qty × (purchase price in EUR + purchasing cost)</b>; the purchasing cost is the freight/handling % on the price (e.g. 0.75 % milk-run on the Kuntai sheets). Then material scrap ${fp(M.scrap)} and material overhead ${fp(M.moh)} (Materials page). <b>Sheet size</b> comes from the material code (the net size of the part is not in the source file); parts per sheet = 1 ÷ qty. <span class="badge b-es">Yellow</span> = estimated price.</p>
+ <div style="overflow-x:auto"><table class="tw mcT"><tr><th style="min-width:130px">Material code</th><th style="min-width:200px">Description</th><th style="min-width:80px">Supplier</th><th style="min-width:98px">Price basis</th><th style="min-width:150px">Sheet mm (W × H)</th><th style="min-width:64px">Unit</th><th class="n" style="min-width:84px">Qty / part</th><th class="n" style="min-width:96px">Price</th><th style="min-width:76px">Cur.</th><th style="min-width:80px">Incoterm</th><th class="n" style="min-width:84px">Purch. cost %</th><th class="n" style="min-width:80px;background:#eef3ff">Cost / part €</th><th class="n">% of mat.</th><th class="n">Price in EUR</th><th class="n">Purch. cost €</th><th class="n">€ / m²</th><th class="n">Parts per sheet</th><th style="min-width:180px">Price source</th><th></th></tr>`;
+ p.mc.lines.forEach((l,i)=>{const q=b+`lines.${i}.`,rw=`${R}.rows[${i}]`;
+  s+=`<tr><td>${inT(q+"code",l.code)}</td><td>${inT(q+"desc",l.desc)}</td><td>${inT(q+"supplier",l.supplier)}</td>
+  <td data-w="wLineEst(${ix},${i})"><select onchange="setPath('${q}basis',this.value);render()">${["Quote","Estimate","Standard"].map(x=>`<option ${l.basis===x?"selected":""}>${x}</option>`).join("")}</select></td>
+  <td><div style="display:flex;gap:4px;align-items:center">${inN(q+"w",l.w)}<span>×</span>${inN(q+"h",l.h)}</div></td><td>${inT(q+"unit",l.unit)}</td><td>${inN(q+"qty",l.qty)}</td>
+  <td data-w="wLineEst(${ix},${i})">${inN(q+"price",l.price)}</td><td><select onchange="setPath('${q}cur',this.value);render()">${["EUR","GBP","MAD"].map(x=>`<option ${l.cur===x?"selected":""}>${x}</option>`).join("")}</select></td><td>${inT(q+"inco",l.inco)}</td><td>${inP(q+"pcPct",l.pcPct)}</td>
+  ${O(`fm(${rw}.cost,4)`,"tot")}${O(`fp(${rw}.cost/${R}.mat)`)}${O(`fm(${rw}.pe,4)`)}${O(`fm(${rw}.pc,4)`)}${O(`fm(${rw}.perM2,2)`)}${O(`fm(${rw}.parts,2)`)}<td>${inT(q+"source",l.source||"")}</td>
+  <td><button class="btn del" onclick="S.products[${ix}].mc.lines.splice(${i},1);save();render()">✕</button></td></tr>`});
+ s+=`<tr class="tot"><td colspan="11">Material lines</td>${O(`fm(${R}.mat,4)`,"tot")}<td colspan="7"></td></tr>
+ <tr><td colspan="11">Material scrap (${fp(M.scrap)} of the material lines)</td>${O(`fm(${R}.scrap,4)`)}<td colspan="7"></td></tr>
+ <tr><td colspan="11">Material overhead (${fp(M.moh)} of material + scrap)</td>${O(`fm(${R}.moh,4)`)}<td colspan="7"></td></tr>
+ <tr class="tot"><td colspan="11">TOTAL MATERIAL COST / PART</td>${O(`fm(${R}.total,4)`,"tot",`mcWarn(${ix})`)}<td colspan="7"></td></tr></table></div>
+ <div class="row"><button class="btn sec" onclick="mcNewLine(${ix})">+ Material line</button><span class="sub" style="margin:0">Previous single value in the console: <b>${S_(`fm(legacyMat(S.products[${ix}]),4)+' €'`)}</b> · difference <b>${S_(`sg(${R}.total-legacyMat(S.products[${ix}]))+' €'`)}</b>${p.mc.ref&&p.mc.ref.total?` · value in the imported file <b>${fm(p.mc.ref.total,4)} €</b>`:""}</span></div>
+ ${M.scrapOnConv?`<p class="sub" style="margin-top:8px">The plant scrap % (Basic inputs) is applied to the <b>conversion cost only</b> for this product: material scrap and overhead are already inside the card (switch in the Materials page).</p>`:`<p class="sub" style="margin-top:8px;color:#b45309">⚠ The plant scrap % is applied to materials as well: material scrap is counted twice (card + plant scrap).</p>`}</div>`;
+ return s}
+function mcWarn(ix){const p=S.products[ix];if(!p.mc||!p.mc.ref||!p.mc.ref.total)return null;const d=Math.abs(mcCalc(p.mc).total/p.mc.ref.total-1);return d>.0005?FW("y","Differs from the imported file ("+fm(p.mc.ref.total,4)+" €): the card was edited"):null}
+/* ---------- import of the material BOM Excel ---------- */
+let MCIMP=null;
+async function mcLoadFile(el){const f=el.files[0];if(!f)return;if(readonly()){alert("Read-only account");return}
+ let wb;try{wb=XLSX.read(await f.arrayBuffer(),{type:"array"})}catch(e){alert("Cannot read this Excel file");el.value="";return}
+ const grid=n=>wb.Sheets[n]?XLSX.utils.sheet_to_json(wb.Sheets[n],{header:1,defval:null,range:0,raw:true}):null,bd=grid("BOM detail"),sm=grid("Summary"),inp=grid("Inputs");
+ if(!bd||!sm){alert("Sheets “Summary” and “BOM detail” not found: use the CX735 Material BOM file.");el.value="";return}
+ const hb=bd.findIndex(r=>r&&r[0]==="#"&&r[1]==="Part"),hs=sm.findIndex(r=>r&&r[0]==="#"&&String(r[1]).startsWith("Part description"));
+ if(hb<0||hs<0){alert("Unexpected layout of the file");el.value="";return}
+ const parts=[],byNo={};
+ for(let i=hs+1;i<sm.length;i++){const r=sm[i];if(!r||!r[0]||String(r[1]).toUpperCase()==="TOTAL")continue;const x={no:String(r[0]),desc:String(r[1]||""),pn:String(r[2]||""),vol:num(r[3]),sp:num(r[4]),calc:String(r[5]||""),fileTotal:num(r[10]),legacy:r[15]==null?null:num(r[15]),lines:[]};parts.push(x);byNo[x.no]=x}
+ for(let i=hb+1;i<bd.length;i++){const r=bd[i];if(!r||r[2]!=="Material")continue;const x=byNo[String(r[0])];if(!x)continue;
+  const sp=mcSupplier(r[18]),dm=mcDims(r[3]),pe=num(r[11]);
+  x.lines.push({id:nid("l"),code:String(r[3]||""),desc:String(r[4]||""),unit:String(r[5]||""),supplier:sp.supplier,basis:sp.basis,source:String(r[18]||""),qty:num(r[6]),price:num(r[7]),cur:String(r[8]||"EUR"),inco:String(r[9]||""),pcPct:pe>0?Math.round(num(r[10])/pe*1e8)/1e8:0,w:dm.w,h:dm.h})}
+ const par=Object.assign({},mpOf(S));if(inp)for(const r of inp){if(!r||typeof r[1]!=="string")continue;const k=r[1].toLowerCase(),v=r[3];if(typeof v!=="number")continue;
+  if(k.startsWith("material scrap"))par.scrap=v;else if(k.startsWith("material overhead"))par.moh=v;else if(k.startsWith("eur / mad"))par.eurMad=v;else if(k.startsWith("gbp per eur"))par.gbpPerEur=v}
+ const taken=new Set();for(const x of parts){x.pid=mcGuess(x,taken);if(x.pid)taken.add(x.pid)}
+ MCIMP={file:f.name,parts:parts.filter(x=>x.lines.length),params:par};el.value="";render()}
+function mcImpTotal(x){return mcCalc({lines:x.lines},{matp:MCIMP.params}).total}
+function mcCancel(){MCIMP=null;render()}
+function mcApply(){if(!MCIMP)return;const ids=MCIMP.parts.map(x=>x.pid).filter(Boolean);if(new Set(ids).size!==ids.length){alert("Two parts of the file are assigned to the same product: fix the assignment.");return}
+ if(!ids.length){alert("No part assigned to a product");return}
+ const ex=ids.filter(id=>{const p=S.products.find(x=>x.id===id);return p&&p.mc&&p.mc.lines&&p.mc.lines.length}).length;
+ if(!confirm("Import the cost cards of "+ids.length+" products"+(ex?" ("+ex+" already have a card: it is REPLACED, manual edits are lost)":"")+"?\n\nMaterial scrap "+fp(MCIMP.params.scrap)+", overhead "+fp(MCIMP.params.moh)+"; the plant scrap % will apply to conversion only. Selling prices and volumes are NOT changed."))return;
+ for(const x of MCIMP.parts){if(!x.pid)continue;const p=S.products.find(y=>y.id===x.pid);p.mc={on:true,lines:JSON.parse(JSON.stringify(x.lines)),ref:{file:MCIMP.file,no:x.no,pn:x.pn,desc:x.desc,vol:x.vol,sp:x.sp,calc:x.calc,total:x.fileTotal,legacy:x.legacy}}}
+ S.matp=Object.assign(MATP0(),MCIMP.params,{scrapOnConv:true});MCIMP=null;CAL={};save();render()}
+function mcPreview(){if(!MCIMP)return"";const opts=sel=>`<option value="">— do not import —</option>`+S.products.map(p=>`<option value="${p.id}" ${p.id===sel?"selected":""}>${esc(p.code)} · ${esc(p.desc)}</option>`).join("");
+ return `<div class="card" style="border:2px solid var(--acc)"><h2>Import preview · ${esc(MCIMP.file)}</h2><p class="sub">Check that each part of the file goes to the right product. “Total (recomputed)” is calculated here from the lines with the parameters of the file and must equal the total of the file. Prices and volumes of the file are NOT imported (they are shown in the summary for comparison only).</p>
+ <table class="tw"><tr><th>#</th><th>Part (file)</th><th>Part number (file)</th><th>Lines</th><th class="n">Total file €/pc</th><th class="n">Total recomputed €/pc</th><th>Assign to product</th><th>Code check</th></tr>
+ ${MCIMP.parts.map((x,i)=>{const t=mcImpTotal(x),ok=Math.abs(t-x.fileTotal)<0.0006,p=S.products.find(y=>y.id===x.pid),cm=p&&nzc(p.code)!==nzc(x.pn);
+  return `<tr><td>${x.no}</td><td><b>${esc(x.desc)}</b></td><td>${esc(x.pn)}</td><td class="n">${x.lines.length}</td><td class="n">${fm(x.fileTotal,4)}</td><td class="n ${ok?"":"wo"}">${fm(t,4)} ${ok?"✓":"≠"}</td>
+  <td><select onchange="MCIMP.parts[${i}].pid=this.value;render()">${opts(x.pid)}</select></td><td class="${cm?"wy":""}">${p?(cm?"console code "+esc(p.code):"same code"):""}</td></tr>`}).join("")}</table>
+ <div class="row"><button class="btn" onclick="mcApply()">Import the assigned cost cards</button><button class="btn sec" onclick="mcCancel()">Cancel</button></div></div>`}
 
 /* ======================= PAGINE ======================= */
 const COL={mat:"#2563eb",conv:"#0d9488",scrap:"#f59e0b",log:"#8b5cf6",mk:"#94a3b8"};
@@ -329,11 +421,30 @@ function pageMR(){const pl=mpl,M=S.plants[pl].machines;
  return h+`</table><div class="row"><button class="btn" onclick="S.plants.${pl}.machines.push({id:nid('m'),name:'New machine',sector:'',qty:1,price:0,resid:.2,life:66000,kw:0,workers:1,guMode:'auto'});save();render()">+ Add machine</button></div></div>
  <div class="card"><h2>How to read it</h2><ul><li><b>Depreciation</b> = price × (1 − residual) ÷ life (h).</li><li><b>Maintenance</b> = maintenance % × hourly depreciation.</li><li><b>Energy</b> = kW × utilisation factor × €/kWh.</li><li><b>DL</b> = operators × operator hourly cost (Inputs page, per plant).</li><li><b>Indirect</b> = DL × burden rate.</li><li><b>Automatic UR</b> = Σ(volume × cycle time ÷ cavities) of that plant’s products ÷ (available hours × 3600 × no. of machines). Only costs marked “÷ UR” in Inputs use it.</li><li>Machines for a new plant are added here; product processes select them by name.</li></ul></div>`}
 
-function pageMat(){let h=`<div class="card"><h2>Material costs</h2><p class="sub">Each material has a cost per plant. The business case only gives the material cost per piece (Gate 3 MEK), identical for Morocco and Spain: one line per product. Quantities are entered in the product sheet.</p>
+function pageMatLegacy(){let h=`<div class="card"><h2>Previous material master (single cost per piece)</h2><p class="sub">Each material has a cost per plant. The business case only gives the material cost per piece (Gate 3 MEK), identical for Morocco and Spain: one line per product. Quantities are entered in the product sheet.</p>
  <table><tr><th>Code</th><th>Description</th><th>UoM</th><th class="n t">Cost Tangier €</th><th class="n z">Cost Zaragoza €</th><th>Used in</th><th></th></tr>`;
  S.materials.forEach((m,i)=>{const p=`materials.${i}.`;const u=S.products.filter(x=>x.bom.some(b=>b.matId===m.id)).length;
   h+=`<tr><td>${inT(p+"code",m.code)}</td><td style="min-width:320px">${inT(p+"desc",m.desc)}</td><td style="width:80px">${inT(p+"unit",m.unit)}</td><td class="t" style="width:140px">${inN(p+"cost.TNG",m.cost.TNG)}</td><td class="z" style="width:140px">${inN(p+"cost.ZGZ",m.cost.ZGZ)}</td><td>${u} products</td><td><button class="btn del" onclick="S.materials.splice(${i},1);save();render()">✕</button></td></tr>`});
  return h+`</table><div class="row"><button class="btn" onclick="S.materials.push({id:nid('x'),code:'',desc:'',unit:'KG',cost:{TNG:0,ZGZ:0}});save();render()">+ Add material</button></div></div>`}
+
+function mcEst(p){if(!mcOn(p))return"—";const r=mcCalc(p.mc).rows;let e=0,c=0,t=0;p.mc.lines.forEach((l,i)=>{t+=r[i].cost;if(l.basis==="Estimate"){e++;c+=r[i].cost}});return e?e+" of "+p.mc.lines.length+" · "+fp(c/(t||1)):"none"}
+function mcAnnual(){return S.products.reduce((a,p)=>a+matInfo(p).total*num(p.v.ZGZ.volume),0)/1e3}
+function pageMat(){const M=mpOf(S),P=S.products;let h=mcPreview();
+ h+=`<div class="card"><h2>Material cost build-up (CX735 BOM)</h2><p class="sub">Load the “CX735 Material BOM by part” Excel: every product gets a <b>cost card</b> with each material line (supplier, price basis, sheet size, quantity, purchase price, purchasing cost), plus scrap and overhead. The file is read in your browser; only the resulting data go to the shared database. Cards are editable line by line in the <b>product sheet</b>.</p>
+ <div class="row"><input type="file" accept=".xlsx,.xlsm" onchange="mcLoadFile(this)" style="width:auto"></div>
+ <div class="grid" style="margin-top:12px"><div class="f"><label>Material scrap (% of material lines)</label>${inP("matp.scrap",M.scrap)}</div><div class="f"><label>Material overhead (% of material + scrap)</label>${inP("matp.moh",M.moh)}</div><div class="f"><label>EUR / MAD</label>${inN("matp.eurMad",M.eurMad)}</div><div class="f"><label>GBP per 1 EUR</label>${inN("matp.gbpPerEur",M.gbpPerEur)}</div></div>
+ <label style="display:flex;gap:10px;align-items:center;margin-top:12px;cursor:pointer;font-weight:600"><input type="checkbox" style="width:auto;min-width:0" ${M.scrapOnConv?"checked":""} onchange="setPath('matp.scrapOnConv',this.checked);render()"> The plant scrap % (Basic inputs, 3 %) applies to the conversion cost only for products with a cost card</label>
+ <p class="sub" style="margin:6px 0 0">${M.scrapOnConv?"<b>ON</b> (recommended): the card already contains material scrap and overhead, so the plant scrap is not charged again on materials.":"<b>OFF</b>: the plant scrap % is charged on materials + conversion as in the Adler file: <b>material scrap is counted twice</b>."}</p></div>`;
+ h+=`<div class="card"><h2>Material cost by product</h2><p class="sub">€ per piece, the same for all plants. “Previous” is the single value used before the cost cards (Gate 3 MEK). Volumes and prices are those of the console (Zaragoza version).</p>
+ <table class="tw"><tr><th>Product</th><th>Code</th><th>Cost card</th><th class="n">Material lines</th><th class="n">Scrap</th><th class="n">Overhead</th><th class="n">Total €/pc</th><th class="n">Previous €/pc</th><th class="n">Δ €/pc</th><th class="n">Δ %</th><th class="n">Volume</th><th class="n">Annual material k€</th><th class="n">% of price</th><th>Estimated prices</th><th></th></tr>
+ ${P.map((p,i)=>{const mi=`matInfo(S.products[${i}])`;return `<tr><td><b>${esc(p.desc)}</b></td><td class="nw">${esc(p.code)}</td><td>${mcOn(p)?"✔ "+p.mc.lines.length+" lines":"— simple"}</td>${O(`fm(${mi}.net,3)`)}${O(`fm(${mi}.scrap,3)`)}${O(`fm(${mi}.moh,3)`)}${O(`fm(${mi}.total,3)`,"tot")}${O(`fm(${mi}.legacy,3)`)}${O(`sg(${mi}.total-${mi}.legacy)`)}${O(`fp(${mi}.legacy?${mi}.total/${mi}.legacy-1:NaN)`)}<td class="n">${fm(p.v.ZGZ.volume,0)}</td>${O(`fm(${mi}.total*S.products[${i}].v.ZGZ.volume/1e3,0)`)}${O(`fp(S.products[${i}].v.ZGZ.price>0?${mi}.total/S.products[${i}].v.ZGZ.price:NaN)`)}${O(`mcEst(S.products[${i}])`)}<td><button class="btn sec" onclick="openProd('${p.id}','CMP')">Open</button></td></tr>`}).join("")}
+ <tr class="tot"><td colspan="11">Total annual material cost (console volumes)</td>${O("fm(mcAnnual(),0)","tot")}<td></td><td></td><td></td></tr></table></div>`;
+ const withRef=P.filter(p=>p.mc&&p.mc.ref);
+ if(withRef.length){const tf=withRef.reduce((a,p)=>a+p.mc.ref.vol*p.mc.ref.total,0),df=(a,b)=>b?a/b-1:NaN,hl=(a,b)=>(b>0&&Math.abs(a/b-1)>.01)?" wy":"";
+  h+=`<div class="card"><h2>Imported file vs console: volumes and selling prices</h2><p class="sub">The file carries its own volumes (k pcs) and selling prices, which are <b>not</b> imported. Yellow = difference above 1 %. With the volumes of the file the annual material cost is <b>${fm(tf,0)} k€</b>; with the console volumes it is <b>${fm(mcAnnual(),0)} k€</b>.</p>
+  <table class="tw"><tr><th>Product</th><th>Part number: file</th><th>Part number: console</th><th class="n">Volume file</th><th class="n">Volume console</th><th class="n">Δ %</th><th class="n">Price file €</th><th class="n">Price console €</th><th class="n">Δ %</th></tr>
+  ${withRef.map(p=>{const r=p.mc.ref,vc=num(p.v.ZGZ.volume)/1e3,pc=num(p.v.ZGZ.price);return `<tr><td>${esc(p.desc)}</td><td class="${nzc(r.pn)===nzc(p.code)?"":"wy"}">${esc(r.pn)}</td><td>${esc(p.code)}</td><td class="n">${fm(r.vol,1)}</td><td class="n${hl(vc,r.vol)}">${fm(vc,1)}</td><td class="n">${fp(df(vc,r.vol))}</td><td class="n">${fm(r.sp,2)}</td><td class="n${pc>0?hl(pc,r.sp):" wy"}">${pc>0?fm(pc,3):"—"}</td><td class="n">${pc>0?fp(df(pc,r.sp)):"—"}</td></tr>`}).join("")}</table></div>`}
+ return h+pageMatLegacy()}
 
 function pagePrd(){return `<div class="row"><button class="btn" onclick="newProd()">+ New product code</button></div><div class="pgrid">${S.products.map(p=>{
  const box=pl=>{const c=pcalc(p,pl);return `<div class="${PCLS[pl]}"><span>${PN[pl]}</span><b>${fm(c.ic,3)} €</b><span>${c.complete?"margin "+fp(c.marginPct):"processes to enter"}</span></div>`};
@@ -353,6 +464,7 @@ function pagePD(){const p=S.products.find(x=>x.id===selProd);if(!p){page="prd";r
  <div class="grid"><div class="f"><label>Code / drawing</label>${inT(b+"code",p.code)}</div><div class="f"><label>Description</label>${inT(b+"desc",p.desc)}</div><div class="f"><label>Customer</label>${inT(b+"customer",p.customer)}</div><div class="f"><label>Project</label>${inT(b+"project",p.project)}</div></div>
  <div class="f" style="margin-top:10px"><label>Notes</label>${inT(b+"notes",p.notes)}</div></div>${tabs()}`;
  /* BOM (shared by the two plants) */
+ const matCard=pl=>mcOn(p)?mcCard(ix,pl):mcCard(ix,pl)+bomCard(pl);
  const bomCard=(pl)=>{const C=`pcalc(S.products[${ix}],'${pl}')`;let s=`<div class="card"><h2>1 · Bill of materials</h2><p class="sub">The BOM (quantity per piece, scrap included) is shared by the two versions; the unit cost of materials is that of the plant${pl==="CMP"?"":" "+PN[pl]}. Negative quantities = recoveries.</p><table><tr><th>Material</th><th>UoM</th>${pl==="CMP"?`<th class="n t">€/unit Tangier</th><th class="n z">€/unit Zaragoza</th>`:`<th class="n">Unit cost €</th>`}<th class="n">Quantity / pc</th>${pl==="CMP"?`<th class="n t">€/pc Tangier</th><th class="n z">€/pc Zaragoza</th>`:`<th class="n">€ / pc</th><th class="n">% of materials</th>`}<th></th></tr>`;
   p.bom.forEach((r,i)=>{const q=b+`bom.${i}.`,m=S.materials.find(x=>x.id===r.matId),mc=k=>`fm(S.materials.find(x=>x.id==='${r.matId}')?.cost.${k},5)`;
    s+=`<tr><td style="min-width:300px"><select onchange="setPath('${q}matId',this.value);render()">${S.materials.map(x=>`<option value="${x.id}" ${x.id===r.matId?"selected":""}>${x.code} · ${x.desc}</option>`).join("")}</select></td><td>${m?m.unit:""}</td>`+
@@ -371,7 +483,7 @@ function pagePD(){const p=S.products.find(x=>x.id===selProd);if(!p){page="prd";r
   <tr><td>Selling price entered</td>${O(`${T}.hasPrice?fm(S.products[${ix}].v.TNG.price,4):'—'`,"t")}${O(`${Z}.hasPrice?fm(S.products[${ix}].v.ZGZ.price,4):'—'`,"z")}<td></td>${A?O(`${TA}.hasPrice?fm(S.products[${ix}].v.ZGZ.price,4):'—'`,"a")+"<td></td>":""}</tr>
   <tr><td>Margin (price − industrial cost)</td>${O(`${T}.hasPrice?fm(${T}.margin,4):'—'`,"t")}${O(`${Z}.hasPrice?fm(${Z}.margin,4):'—'`,"z")}<td></td>${A?O(`${TA}.hasPrice?fm(${TA}.margin,4):'—'`,"a")+"<td></td>":""}</tr>
   <tr><td>Margin %</td>${O(`fp(${T}.marginPct)`,"t")}${O(`fp(${Z}.marginPct)`,"z")}<td></td>${A?O(`fp(${TA}.marginPct)`,"a")+"<td></td>":""}</tr></table></div>
-  <div class="card"><h2>Structure of the calculated price</h2><div class="sub"><span class="badge b-t">Tangier</span></div><div data-c="${stackOf(ix,"TNG").replace(/"/g,"&quot;")}"></div><div class="sub"><span class="badge b-z">Zaragoza</span></div><div data-c="${stackOf(ix,"ZGZ").replace(/"/g,"&quot;")}"></div>${A?`<div class="sub"><span class="badge b-a">${PN.TNA}</span></div><div data-c="${stackOf(ix,"TNA").replace(/"/g,"&quot;")}"></div>`:""}</div>`+bomCard("CMP");
+  <div class="card"><h2>Structure of the calculated price</h2><div class="sub"><span class="badge b-t">Tangier</span></div><div data-c="${stackOf(ix,"TNG").replace(/"/g,"&quot;")}"></div><div class="sub"><span class="badge b-z">Zaragoza</span></div><div data-c="${stackOf(ix,"ZGZ").replace(/"/g,"&quot;")}"></div>${A?`<div class="sub"><span class="badge b-a">${PN.TNA}</span></div><div data-c="${stackOf(ix,"TNA").replace(/"/g,"&quot;")}"></div>`:""}</div>`+matCard("CMP");
   return h}
  const pl=tab,v=p.v[pl],vb=`products.${ix}.v.${pl}.`,C=`pcalc(S.products[${ix}],'${pl}')`,other=pl==="ZGZ"?"TNG":"ZGZ",inL=(q,x)=>pl==="TNA"?inN(q,x).replace("<input ","<input disabled "):inN(q,x);
  h+=`<div class="card"><h2>Commercial data · ${PN[pl]}</h2>${pl==="TNA"?`<p class="sub">Volume, price and logistics are those of Zaragoza (linked: change them in the Zaragoza tab). Machines, processes and operators below belong to this scenario only.</p>`:""}<div class="grid"><div class="f"><label>Annual volume (pcs)</label>${inL(vb+"volume",v.volume)}</div><div class="f"><label>JIT/JIS logistics (€/pc)</label>${inL(vb+"logistic",v.logistic)}</div><div class="f" data-w="wPrice(S.products[${ix}],'${pl}')"><label>Selling price (Sales) €/pc</label>${inL(vb+"price",v.price)}</div></div></div>
@@ -384,7 +496,7 @@ function pagePD(){const p=S.products.find(x=>x.id===selProd);if(!p){page="prd";r
  <div><span>Direct labour / pc</span><b>${S_(`fm(${C}.cR,3)+' €'`)}</b><small>${S_(`fp(${C}.cR/${C}.ic)+' of industrial cost'`)}</small></div>
  <div><span>Burden / pc</span><b>${S_(`fm(${C}.cT,3)+' €'`)}</b><small>${S_(`fp(${C}.cT/${C}.ic)+' of industrial cost'`)}</small></div>
  <div><span>Machine costs / pc</span><b>${S_(`fm(${C}.cG+${C}.cI+${C}.cM,3)+' €'`)}</b><small>depreciation + maintenance + energy</small></div></div>
- <div class="card"><h2>Structure of the calculated price · ${PN[pl]}</h2><div data-c="stack(${C})" style="margin-top:10px"></div></div>`+bomCard(pl)+
+ <div class="card"><h2>Structure of the calculated price · ${PN[pl]}</h2><div data-c="stack(${C})" style="margin-top:10px"></div></div>`+matCard(pl)+
  `<div class="card"><h2>2 · Cycle times and conversion · ${PN[pl]}</h2><p class="sub">Reference time = cycle time ÷ efficiency ÷ cavities (or people). €/pc = ref. time × rate €/h ÷ 3600. For manual work choose “Manual DL” (operator hourly cost of ${PN[pl]}). <b>Crew</b>: if filled (e.g. from the CIS), the operation is costed as machine (depreciation + maintenance + energy) + crew × DL (+ burden on machine stations), ignoring the machine’s generic operators; leave empty to use the machine rate as is (then “people” divide the time for manual work). Machines are those of the plant (Machines page).</p>
  <table><tr><th>Operation</th><th>Machine</th><th class="n">Cavities / people</th><th class="n">Crew (operators)</th><th class="n">Cycle time (s)</th><th class="n">Efficiency %</th><th class="n">Ref. time (s)</th><th class="n">Rate €/h</th><th class="n">€ / pc</th><th class="n">% conv.</th><th></th></tr>`;
  v.ops.forEach((o,i)=>{const q=vb+`ops.${i}.`;
@@ -591,6 +703,10 @@ function pageBur(){if(bpl==="CMP")return pageBurCmp();const pl=bpl,p=S.plants[pl
 /* ======================= PDF REPORT ======================= */
 function logoData(){return new Promise(res=>{if(window._logo)return res(window._logo);const im=new Image();im.onload=()=>{try{const c=document.createElement("canvas");c.width=im.width;c.height=im.height;c.getContext("2d").drawImage(im,0,0);res(window._logo={url:c.toDataURL("image/png"),w:im.width,h:im.height})}catch(e){res(null)}};im.onerror=()=>res(null);im.src="logo.png"})}
 const pf=v=>isFinite(v)?fm(v,3):"-",pp=v=>isFinite(v)?(v*100).toFixed(1)+" %":"-";
+function mcPdf(tbl,p,y){const m=mcCalc(p.mc),M=mpOf(S),r=x=>({content:x,styles:{halign:"right"}}),b=x=>({content:x,styles:{fontStyle:"bold"}});
+ const body=p.mc.lines.map((l,i)=>[l.code,l.desc,l.supplier+(l.basis==="Estimate"?" (estimate)":""),(num(l.w)>0?fm(l.w,0)+" x "+fm(l.h,0):""),l.unit,fm(l.qty,4),fm(l.price,4)+" "+l.cur,l.inco,pp(l.pcPct),fm(m.rows[i].cost,4),pp(m.rows[i].cost/(m.mat||1))]);
+ body.push([{content:"Material scrap "+pp(M.scrap),colSpan:9},r(fm(m.scrap,4)),""],[{content:"Material overhead "+pp(M.moh)+" (on material + scrap)",colSpan:9},r(fm(m.moh,4)),""],[b("TOTAL MATERIAL COST / PART"),"","","","","","","","",b(fm(m.total,4)),""]);
+ return tbl({startY:y,head:[["Material code","Description","Supplier","Sheet mm","Unit","Qty / pc","Price","Incoterm","Purch. cost","EUR/pc","% mat."]],body,styles:{fontSize:7,cellPadding:2.5},columnStyles:{5:{halign:"right"},6:{halign:"right"},8:{halign:"right"},9:{halign:"right"},10:{halign:"right"}}})+12}
 async function reportPDF(full,onlyId){
  if(!window.jspdf){alert("PDF library not loaded");return}
  const doc=new window.jspdf.jsPDF({orientation:"landscape",unit:"pt",format:"a4"}),W=doc.internal.pageSize.getWidth(),H=doc.internal.pageSize.getHeight(),M=36;
@@ -639,7 +755,7 @@ async function reportPDF(full,onlyId){
    y=tbl({startY:y,head:[["Cost build-up (EUR/pc)","Tangier","Zaragoza","Diff Z-T"].concat(A_?[PN.TNA,"Diff A-Z"]:[])],body:[row("Raw materials / components","mat"),row("Conversion (machine rate x times, crew)","conv"),row("   depreciation","cG"),row("   maintenance","cI"),row("   energy","cM"),row("   direct labour","cR"),row("   burden","cT"),row("Operators in the route","heads"),row("Direct labour min / pc","dlMin"),row("Subtotal","sub",1),row("Scrap","scrap"),row("Logistics","log"),row("INDUSTRIAL COST","ic",1),row("Mark-up","markup"),row("PRICE CALCULATED FROM BREAKDOWN","calc",1),
     ["Selling price (Sales)",t.hasPrice?pf(p.v.TNG.price):"-",z.hasPrice?pf(p.v.ZGZ.price):"-",""].concat(a?[a.hasPrice?pf(p.v.ZGZ.price):"-",""]:[]),["Margin (price - industrial cost)",t.hasPrice?pf(t.margin):"-",z.hasPrice?pf(z.margin):"-",""].concat(a?[a.hasPrice?pf(a.margin):"-",""]:[]),["Margin %",pp(t.marginPct),pp(z.marginPct),""].concat(a?[pp(a.marginPct),""]:[])],
     columnStyles:{0:{cellWidth:250},1:{halign:"right"},2:{halign:"right"},3:{halign:"right"},4:{halign:"right"},5:{halign:"right"}},tableWidth:A_?760:520})+12;
-   if(p.bom.length)y=tbl({startY:y,head:[["Bill of materials","UoM","Qty / pc","Unit cost T","Unit cost Z","EUR/pc T","EUR/pc Z"]],body:p.bom.map((b,j)=>{const m=S.materials.find(x=>x.id===b.matId)||{};return[(m.code||"")+" "+(m.desc||""),m.unit||"",fm(b.qty,4),m.cost?fm(m.cost.TNG,4):"-",m.cost?fm(m.cost.ZGZ,4):"-",fm(t.bomRows[j],4),fm(z.bomRows[j],4)]}),columnStyles:{2:{halign:"right"},3:{halign:"right"},4:{halign:"right"},5:{halign:"right"},6:{halign:"right"}}})+12;
+   if(mcOn(p))y=mcPdf(tbl,p,y);else if(p.bom.length)y=tbl({startY:y,head:[["Bill of materials","UoM","Qty / pc","Unit cost T","Unit cost Z","EUR/pc T","EUR/pc Z"]],body:p.bom.map((b,j)=>{const m=S.materials.find(x=>x.id===b.matId)||{};return[(m.code||"")+" "+(m.desc||""),m.unit||"",fm(b.qty,4),m.cost?fm(m.cost.TNG,4):"-",m.cost?fm(m.cost.ZGZ,4):"-",fm(t.bomRows[j],4),fm(z.bomRows[j],4)]}),columnStyles:{2:{halign:"right"},3:{halign:"right"},4:{halign:"right"},5:{halign:"right"},6:{halign:"right"}}})+12;
    for(const k of PL){const c=C[i][k],v=p.v[k];if(!v.ops.length)continue;if(y>H-120){doc.addPage();y=60}
     y=tbl({startY:y,head:[["Processes - "+PN[k],"Machine","Operators","Cycle (s)","Eff.","Ref. (s)","Depr.","Maint.","Energy","Labour","Burden","Rate EUR/h","EUR/pc"]],headStyles:{fillColor:PCOL[k],textColor:255},
      body:v.ops.map((o,j)=>{const r=c.opRows[j];return[o.desc,r.mname,fm(r.heads,2),fm(o.cycle,0),pp(o.eff),fm(r.L,1),fm(r.G,2),fm(r.I,2),fm(r.M,2),fm(r.R,2),fm(r.T,2),fm(r.rate,2),fm(r.N,4)]}).concat([[{content:"Total per piece (EUR): depr "+fm(c.cG,3)+" | maint "+fm(c.cI,3)+" | energy "+fm(c.cM,3)+" | labour "+fm(c.cR,3)+" | burden "+fm(c.cT,3)+" | operators "+fm(c.heads,2),colSpan:12,styles:{fontStyle:"bold"}},{content:fm(c.conv,4),styles:{fontStyle:"bold"}}]]),
@@ -658,9 +774,9 @@ const readonly=()=>ME&&ME.ruolo==="viewer";
 async function call(fn,...args){let r;try{r=await fetch(API,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify({fn,args,token:TOKEN})})}catch(e){throw new Error("Server unreachable")}
  const j=await r.json();if(j.status===401&&fn!=="apiLogin"){logout(true);throw new Error("Session expired")}if(j.error)throw new Error(j.error);return j.data}
 function setStatus(t,bad){const e=document.getElementById("stat");if(e){e.textContent=t;e.className="badge "+(bad?"b-es":"b-bc")}}
-function docsOf(st){const d={meta:{name:st.name||"",ids:st.products.map(p=>p.id),alignZ:!!st.alignZ,alignBasis:st.alignBasis||"pool",recovery:!!st.recovery},notes:st.notes||{},guide:st.guide||{},materials:st.materials};if(st.check)d.check=st.check;for(const k of PL)d["plant:"+k]=st.plants[k];for(const p of st.products)d["prod:"+p.id]=p;return d}
+function docsOf(st){const d={meta:{name:st.name||"",ids:st.products.map(p=>p.id),alignZ:!!st.alignZ,alignBasis:st.alignBasis||"pool",recovery:!!st.recovery},notes:st.notes||{},guide:st.guide||{},materials:st.materials};if(st.matp&&JSON.stringify(st.matp)!==JSON.stringify(MATP0()))d.meta.matp=st.matp;if(st.check)d.check=st.check;for(const k of PL)d["plant:"+k]=st.plants[k];for(const p of st.products)d["prod:"+p.id]=p;return d}
 function applyDoc(k,val){applyDoc0(k,val);fixS()}
-function applyDoc0(k,val){if(k==="meta"){S.name=val.name;S.alignZ=!!val.alignZ;S.alignBasis=val.alignBasis||"pool";S.recovery=!!val.recovery;S._ids=val.ids;S.products.sort((a,b)=>S._ids.indexOf(a.id)-S._ids.indexOf(b.id))}
+function applyDoc0(k,val){if(k==="meta"){S.name=val.name;S.alignZ=!!val.alignZ;S.alignBasis=val.alignBasis||"pool";S.recovery=!!val.recovery;S.matp=Object.assign(MATP0(),val.matp||{});S._ids=val.ids;S.products.sort((a,b)=>S._ids.indexOf(a.id)-S._ids.indexOf(b.id))}
  else if(k==="notes")S.notes=val;else if(k==="guide")S.guide=val;else if(k==="check")S.check=val;else if(k==="materials")S.materials=val;
  else if(k.startsWith("plant:"))S.plants[k.slice(6)]=val;
  else if(k.startsWith("prod:")){const i=S.products.findIndex(p=>p.id===val.id);if(i>=0)S.products[i]=val;else S.products.push(val);if(S._ids)S.products.sort((a,b)=>S._ids.indexOf(a.id)-S._ids.indexOf(b.id))}}
