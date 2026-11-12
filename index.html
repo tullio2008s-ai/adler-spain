@@ -282,12 +282,12 @@ function pageChk(){const L=allChecks(),o=L.filter(x=>x.l==="o").length,y=L.lengt
  return `<div class="kpi"><div class="${o?"wo":""}"><span>Probable anomalies (orange)</span><b>${o}</b></div><div class="${y?"wy":""}"><span>To verify (yellow)</span><b>${y}</b></div></div>
  <div class="card"><h2>Data checks</h2><p class="sub">Automatic checks on the current data. <b>Orange</b> = probable anomaly, <b>yellow</b> = to be verified. The same warnings appear next to the cells concerned (hover the ⚠ for the explanation).</p>
  <table><tr><th></th><th>Plant</th><th>Where</th><th>Message</th><th></th></tr>${L.map((x,i)=>`<tr class="${x.l==="o"?"wo":"wy"}"><td>⚠</td><td>${x.pl?PN[x.pl]:"All"}</td><td>${esc(x.area)}</td><td style="white-space:normal;min-width:320px">${esc(x.msg)}</td><td><button class="btn sec" data-ok="1" onclick="gotoChk(${i})">Open</button></td></tr>`).join("")||'<tr><td colspan="5">No warnings.</td></tr>'}</table></div>`}
-const PAGES=[["dash","▦","Overview"],["pl","💶","P&L comparison"],["inp","⚙","Basic inputs"],["bur","⚖","Burden & rates"],["mr","🏭","Machines & processes"],["mat","▤","Materials"],["prd","📦","Products"],["brg","🌉","Why Zaragoza costs more"],["chk","⚠","Data checks"],["gui","✔","Guide & checks"]];
+const PAGES=[["dash","▦","Overview"],["pl","💶","P&L comparison"],["ex","📊","Executive summary"],["inp","⚙","Basic inputs"],["bur","⚖","Burden & rates"],["mr","🏭","Machines & processes"],["mat","▤","Materials"],["prd","📦","Products"],["brg","🌉","Why Zaragoza costs more"],["chk","⚠","Data checks"],["gui","✔","Guide & checks"]];
 function render(keep){CAL={};fixS();document.getElementById('bTNA').classList.toggle('hid',!tnaOn());
  const CK=allChecks(),nO=CK.filter(x=>x.l==="o").length,nY=CK.length-nO;document.getElementById("nav").innerHTML=PAGES.map(([k,i,t])=>`<button class="nv ${(page===k||(page==="pd"&&k==="prd"))?"on":""}" onclick="go('${k}')"><span>${i}</span>${t}${k==="chk"&&CK.length?`<span class="navb ${nO?"":"y"}" title="${nO} anomalies, ${nY} to verify">${nO?nO+"⚠":nY}</span>`:""}</button>`).join("");
- const T={dash:"Overview · Tangier vs Zaragoza"+(tnaOn()?" vs "+PN.TNA:""),inp:"Basic inputs",bur:"Burden split & hourly rates",mr:"Machines & processes · machine rate",mat:"Material cost",prd:"Products",pd:"Product sheet",gui:"Guide & checks",chk:"Data checks",pl:"P&L comparison",brg:"Bridge · why the costs differ"};
+ const T={dash:"Overview · Tangier vs Zaragoza"+(tnaOn()?" vs "+PN.TNA:""),inp:"Basic inputs",bur:"Burden split & hourly rates",mr:"Machines & processes · machine rate",mat:"Material cost",prd:"Products",pd:"Product sheet",gui:"Guide & checks",chk:"Data checks",pl:"P&L comparison",ex:"Executive summary · Zaragoza vs Tangier",brg:"Bridge · why the costs differ"};
  document.getElementById("title").textContent=T[page];
- const pre=(page==="dash"||page==="brg"||page==="pl")?alignSwitch()+recSwitch():(page==="bur"&&bpl==="CMP")?alignSwitch():alignBanner();document.getElementById("main").innerHTML=pre+{dash:pageDash,inp:pageInp,bur:pageBur,chk:pageChk,brg:pageBrg,pl:pagePL,mr:pageMR,mat:pageMat,prd:pagePrd,pd:pagePD,gui:pageGui}[page]();refresh();if(readonly())document.querySelectorAll("#main input,#main select,#main button.btn:not([data-ok])").forEach(e=>e.disabled=true);if(!keep)window.scrollTo(0,0)}
+ const pre=(page==="dash"||page==="brg"||page==="pl"||page==="ex")?alignSwitch()+recSwitch():(page==="bur"&&bpl==="CMP")?alignSwitch():alignBanner();document.getElementById("main").innerHTML=pre+{dash:pageDash,inp:pageInp,bur:pageBur,chk:pageChk,brg:pageBrg,pl:pagePL,ex:pageEX,mr:pageMR,mat:pageMat,prd:pagePrd,pd:pagePD,gui:pageGui}[page]();refresh();if(page==="ex")fitSlide();if(readonly())document.querySelectorAll("#main input,#main select,#main button.btn:not([data-ok])").forEach(e=>e.disabled=true);if(!keep)window.scrollTo(0,0)}
 function go(k){page=k;render()}
 function openProd(id,t){selProd=id;if(t)tab=t;page="pd";render()}
 function resetData(){if(ME&&ME.ruolo!=="admin"){alert("Only the administrator can reset the data");return}if(!confirm("WARNING: this erases the SHARED data of all users. Continue?"))return;if(!confirm("Confirm again: this cannot be undone (only the history log remains)."))return;S=build();selProd=null;save();go("dash")}
@@ -581,7 +581,7 @@ async function plPDF(){if(plView==="bc")return bcPDF();if(!window.jspdf){alert("
  if(plView==="products"){
   body=S0.rows.map(r=>r.map((x,i)=>{if(typeof x!=="number")return x;if(i===2)return fm(x,1);const k=(i-3)%4;return k===1||k===3?fm(x,1)+" %":fm(x,S0.dec)}));bold=i=>i===S0.rows.length-1}
  else{const M=S0.M;body=M.rows.map(r=>[r.label].concat(...PL.map(pl=>[plFmt(r.kind,r.v[pl]),isFinite(r.pct[pl])?pp(r.pct[pl]):""]),...M.deltas.map(([a,b])=>[plSg(r.kind,r.v[a]-r.v[b]),plPP((r.pct[a]-r.pct[b])*100)])));bold=i=>["t","m","rev"].includes(M.rows[i].kind)}
- doc.autoTable({startY:90,head:[S0.head],body,theme:"grid",styles:{fontSize:7.3,cellPadding:2.4,lineColor:[220,224,235]},headStyles:{fillColor:[15,27,51],textColor:255,halign:"center"},margin:{left:36,right:36},columnStyles:Object.fromEntries(Array.from({length:S0.head.length-2},(_,i)=>[i+(plView==="products"?2:1),{halign:"right"}])),
+ doc.autoTable({startY:90,head:[S0.head.map(pdfT)],body:body.map(r=>r.map(x=>typeof x==="string"?pdfT(x):x)),theme:"grid",styles:{fontSize:7.3,cellPadding:2.4,lineColor:[220,224,235]},headStyles:{fillColor:[15,27,51],textColor:255,halign:"center"},margin:{left:36,right:36},columnStyles:Object.fromEntries(Array.from({length:S0.head.length-2},(_,i)=>[i+(plView==="products"?2:1),{halign:"right"}])),
   didParseCell:d=>{if(d.section==="body"&&bold(d.row.index)){d.cell.styles.fontStyle="bold";d.cell.styles.fillColor=[242,245,251]}}});
  const y=doc.lastAutoTable.finalY+12;doc.setFontSize(7.5).setTextColor(90).text(doc.splitTextToSize("Industrial cost = materials + conversion (labour, burden, depreciation, maintenance, energy) + plant scrap + logistics. Industrial margin = revenue - industrial cost. Operating result = after G&A, before taxes and financial items. Percentages on the revenue of the same plant; pp = percentage points.",doc.internal.pageSize.getWidth()-72),36,Math.min(y,H-40));
  const n=doc.internal.getNumberOfPages();for(let i=1;i<=n;i++){doc.setPage(i);doc.setFont("helvetica","normal").setFontSize(7.5).setTextColor(130).text("ADLER Pelzer Group - Product cost console  |  confidential",36,H-18)}
@@ -656,7 +656,9 @@ function bcyParse(wb){const out={years:null,plants:{}},plan=[["TNG","","Tangier"
   const ih=ig.findIndex(r=>r&&r.some(c=>/^20\d\d$/.test(String(c)))&&!r[1]),icols=[],seenI=new Set();if(ih>=0)ig[ih].forEach((c,i)=>{if(/^20\d\d$/.test(String(c))&&!seenI.has(+c)){seenI.add(+c);icols.push([i,+c])}});
   const pick=re=>{const r=ig.find(r=>r&&typeof r[1]==="string"&&re.test(r[1]));if(!r)return null;const o={};for(const [ci,y] of icols)o[y]=typeof r[ci]==="number"?r[ci]:num(r[ci]);return o};
   const veh=pick(/^total vehicles/i);if(!veh)throw new Error("Row “Total vehicles / year” not found in "+pre+"INPUT");
-  out.plants[pl]={veh,hqRate:pick(/^hq management fee/i)||{},taxRate:pick(/corporate tax rate/i)||{},rows}}
+  const hc={};for(const [k,re] of [["dir",/^total direct workers/i],["ind",/^total indirect workers/i],["adm",/^total admin/i],["mgr",/^total managers/i]]){const x=pick(re);if(x)hc[k]=x}
+  const avg={};for(const [k,re] of [["dir",/^avg cost\s*[–-]\s*direct/i],["ind",/^avg cost\s*[–-]\s*indirect/i],["adm",/^avg cost\s*[–-]\s*(admin|shift)/i],["mgr",/^avg cost\s*[–-]\s*manager/i]]){const r=ig.find(r=>r&&typeof r[1]==="string"&&re.test(r[1].trim()));if(r){const v=r.slice(2,9).map(parseFloat).find(isFinite);if(v!=null)avg[k]=v}}
+  out.plants[pl]={veh,hqRate:pick(/^hq management fee/i)||{},taxRate:pick(/corporate tax rate/i)||{},rows,hc,avg}}
  return out}
 async function bcyIngest(f,withParams){
  try{const wb=XLSX.read(await f.arrayBuffer(),{type:"array"}),o=bcyParse(wb);
@@ -825,6 +827,123 @@ function pageBC(){const tabs=`<div class="row" style="gap:12px;margin-bottom:10p
  return tabs+(bcMode==="years"?pageBCYears():pageBCSteady())}
 function bcCSV(){return bcMode==="years"&&S.bcy?bcCSVy():bcCSVs()}
 async function bcPDF(){return bcMode==="years"&&S.bcy?bcPDFy():bcPDFs()}
+
+/* ======================= EXECUTIVE SUMMARY (steady state + year by year), one A4-landscape page each ======================= */
+let exView="ss",exUnit="k",exA=true,exSS=0;
+const EX_LINES=[["net","Net sales","good"],["mat","Material cost","cost"],["dp","Direct personnel (MOD)","cost"],["var","Variable cost (incl. electricity)","cost"],["ind","Indirect personnel / admin / management","cost"],["fixed","Fixed cost","cost"],["hq","HQ management fee","cost"],["sub","Subsidies (income)","good"],["ebitda","EBITDA","res"],["ebitdap","EBITDA % of net sales","pct"],["da","Depreciation & amortization","cost"],["ebit","EBIT","res"],["netinc","Net income","res"]];
+function exVal(c,k){switch(k){case"net":return c.sales;case"mat":return c.mat;case"dp":return c.dp;case"var":return c.varc;case"ind":return c.ind;case"fixed":return c.fixed;case"hq":return c.hq;case"sub":return c.sub;case"ebitda":return c.ebitda;case"ebitdap":return c.sales?c.ebitda/c.sales:NaN;case"da":return c.da;case"ebit":return c.ebit;case"netinc":return c.net}return NaN}
+const exFv=v=>{if(!isFinite(v))return"—";const x=exUnit==="k"?v/1000:v,r=Math.round(x);return r<0?"("+fm(-r,0)+")":fm(r,0)};
+const exFd=v=>{if(!isFinite(v))return"—";const x=exUnit==="k"?v/1000:v,r=Math.round(x);return r===0?"0":(r>0?"+":"−")+fm(Math.abs(r),0)};
+const exFp=v=>isFinite(v)?(v<0?"−":"")+fm(Math.abs(v)*100,1)+" %":"—";
+const exFpp=v=>{if(!isFinite(v))return"—";const x=v*100;return Math.abs(x)<0.05?"0.0":(x>0?"+":"−")+fm(Math.abs(x),1)};
+const exPls=()=>exA&&PL.includes("TNA")?["TNG","ZGZ","TNA"]:["TNG","ZGZ"];
+function exModel(){const B=S.bcy,pls=exPls(),cols={};for(const pl of pls)cols[pl]=bcyModel(pl).cols;
+ const yrs=cols.TNG.map(c=>c.y),prod=yrs.map((y,i)=>i).filter(i=>cols.TNG[i].sales>0),lastBC=B.years[B.years.length-1];
+ let ss=prod.find(i=>yrs[i]===(exSS||lastBC));if(ss==null)ss=prod.find(i=>yrs[i]===lastBC);if(ss==null)ss=prod[prod.length-1];
+ const hcOf=(pl,i)=>{const src=pl==="TNG"?"TNG":"ZGZ",h=(B.plants[src]||{}).hc;if(!h||!h.dir)return null;const y=yrs[i],o={dir:num(h.dir[y]),ind:num((h.ind||{})[y]),adm:num((h.adm||{})[y]),mgr:num((h.mgr||{})[y])};
+  if(pl==="TNA"){const z=cols.ZGZ[i].dp,a=cols.TNA[i].dp;o.dir=z>0?o.dir*a/z:o.dir}return o};
+ return{B,pls,cols,yrs,prod,ss,hcOf,hasHC:!!((B.plants.TNG||{}).hc&&B.plants.TNG.hc.dir),avg:pl=>(B.plants[pl==="TNG"?"TNG":"ZGZ"]||{}).avg||{}}}
+const exCls=(kind,d)=>{if(!isFinite(d)||Math.abs(d)<1e-9)return"";return kind==="cost"?(d>0?"neg":"pos"):(d>0?"pos":"neg")};
+function exSpecs(m,view){const pls=m.pls,A=pls.includes("TNA"),nm=pl=>pl==="TNA"?"Autom.":PSH[pl],specs=[],cs=m.cols;
+ const cum=(pl,k)=>k==="ebitdap"?(()=>{const s=cs[pl].reduce((a,c)=>a+c.sales,0),e=cs[pl].reduce((a,c)=>a+c.ebitda,0);return s?e/s:NaN})():cs[pl].reduce((a,c)=>a+exVal(c,k),0);
+ const sales=(pl,i)=>cs[pl][i].sales;
+ if(view==="ss"){const i=m.ss,y=m.yrs[i],y0=m.yrs[0],y1=m.yrs[m.yrs.length-1];
+  const dz=["ZGZ","TNG"],da=["TNA","ZGZ"];
+  const groups=[{l:"",span:1},{l:y+" · steady state ("+(exUnit==="k"?"EUR thousands":"EUR")+")",span:pls.length+(A?2:1),color:"#3a4a2b"},{l:"% of net sales "+y,span:pls.length,color:"#475569"},{l:"Cumulative "+y0+"-"+y1,span:pls.length+(A?2:1),color:"#3a4a2b"}];
+  const cols=[""].concat(pls.map(nm),["Δ Z − T"],A?["Δ A − Z"]:[],pls.map(nm),pls.map(nm),["Δ Z − T"],A?["Δ A − Z"]:[]);
+  const rows=EX_LINES.map(([k,l,kind])=>{const pct=kind==="pct",cells=[];
+   const v=pl=>exVal(cs[pl][i],k),cu=pl=>cum(pl,k),f=pct?exFp:exFv,fd=pct?exFpp:exFd;
+   for(const pl of pls){const x=v(pl);cells.push({t:f(x),c:kind!=="cost"&&x<0?"neg":""})}
+   const dd=(g,f0)=>{const d=g(f0[0])-g(f0[1]);return{t:fd(pct?d:d),c:exCls(kind,d)}};
+   cells.push(dd(v,dz));if(A)cells.push(dd(v,da));
+   for(const pl of pls){const s=sales(pl,i);cells.push({t:(k==="net"||pct)?"":(s?exFp(v(pl)/s):"—"),c:""})}
+   for(const pl of pls){const x=cu(pl);cells.push({t:f(x),c:kind!=="cost"&&x<0?"neg":""})}
+   cells.push(dd(cu,dz));if(A)cells.push(dd(cu,da));
+   return{label:l,kind:k==="net"?"net":k==="ebitda"?"ebitda":pct?"pct":kind==="res"?"res":"n",cells}});
+  specs.push({title:"1. P&L comparison — key lines",groups,cols,rows,note:"Costs are shown as positive amounts; Δ > 0 on a cost line = higher cost in the first-named plant (Z = Zaragoza, T = Tangier, A = automated scenario). Δ colours: green = better, red = worse."});
+  if(m.hasHC){const gh=[{l:"",span:1},{l:"Headcount "+y+" (HC)",span:pls.length+(A?2:1),color:"#3a4a2b"},{l:"Average cost per head (EUR / year)",span:2,color:"#475569"}];
+   const hc={};for(const pl of pls)hc[pl]=m.hcOf(pl,i);
+   const lines=[["Direct labour (MOD)","dir"],["Indirect workers (logistics, maint.)","ind"],["Admin / shift supervisors","adm"],["Managers","mgr"]];
+   const hrow=(l,g,kind)=>{const cells=[];for(const pl of pls)cells.push({t:hc[pl]?fm(g(hc[pl]),kind==="pct"?1:0)+(kind==="pct"?" %":""):"—",c:""});
+    const d=(a,b)=>hc[a]&&hc[b]?g(hc[a])-g(hc[b]):NaN,fdh=x=>isFinite(x)?(Math.abs(x)<0.05?"0":(x>0?"+":"−")+fm(Math.abs(x),kind==="pct"?1:0)):"—";
+    cells.push({t:fdh(d("ZGZ","TNG")),c:""});if(A)cells.push({t:fdh(d("TNA","ZGZ")),c:""});return cells};
+   const av=m.avg,wrows=lines.map(([l,k])=>{const cells=hrow(l,h=>h[k]);cells.push({t:av("TNG")[k]!=null?fm(av("TNG")[k],0):"—",c:""},{t:av("ZGZ")[k]!=null?fm(av("ZGZ")[k],0):"—",c:""});return{label:l,kind:"n",cells}});
+   const tot=h=>h.dir+h.ind+h.adm+h.mgr;
+   const r1=hrow("",h=>h.ind+h.adm+h.mgr);r1.push({t:"",c:""},{t:"",c:""});wrows.push({label:"Total indirect labour",kind:"b",cells:r1});
+   const r2=hrow("",tot);r2.push({t:"",c:""},{t:"",c:""});wrows.push({label:"TOTAL HEADCOUNT",kind:"ebitda",cells:r2});
+   const r3=hrow("",h=>tot(h)?h.dir/tot(h)*100:NaN,"pct");r3.push({t:"",c:""},{t:"",c:""});wrows.push({label:"Direct labour share of total HC",kind:"pct",cells:r3});
+   specs.push({title:"2. Workforce structure — headcount",groups:gh,cols:[""].concat(pls.map(nm),["Δ Z − T"],A?["Δ A − Z"]:[],["Tangier","Zaragoza"]),rows:wrows,note:"Headcount from the Business Case workforce model"+(A?"; automated scenario: direct labour of Zaragoza scaled by the ratio of the direct-labour cost of the console":"")+"."})}
+ }else{const ys=m.prod,yy=ys.map(i=>m.yrs[i]);
+  const groups=[{l:"",span:1}].concat(pls.map(pl=>({l:PN[pl],span:ys.length,color:{TNG:"#c2410c",ZGZ:"#1d4ed8",TNA:"#047857"}[pl]})));
+  const cols=[""].concat(...pls.map(pl=>yy.map(String)));
+  const rows=EX_LINES.filter(l=>l[0]!=="da").map(([k,l,kind])=>{const pct=kind==="pct",cells=[];for(const pl of pls)for(const i of ys){const x=exVal(cs[pl][i],k);cells.push({t:pct?exFp(x):exFv(x),c:kind!=="cost"&&x<0?"neg":""})}
+   return{label:l,kind:k==="net"?"net":k==="ebitda"?"ebitda":pct?"pct":kind==="res"?"res":"n",cells}});
+  specs.push({title:"1. P&L — key lines ("+(exUnit==="k"?"EUR thousands":"EUR")+")",groups,cols,rows,note:"Costs are shown as positive amounts."});
+  const pr=[["mat","Material cost"],["dp","Direct personnel (MOD)"],["var","Variable cost (incl. electricity)"],["ind","Indirect personnel / admin / management"],["fixed","Fixed cost"],["hq","HQ management fee"],["sub","Subsidies (income)"],["ebitda","EBITDA"]];
+  const prows=pr.map(([k,l])=>({label:l+" %",kind:k==="ebitda"?"ebitda":"pct",cells:[].concat(...pls.map(pl=>ys.map(i=>{const s=cs[pl][i].sales,x=exVal(cs[pl][i],k);return{t:s?exFp(x/s):"—",c:k==="ebitda"&&x<0?"neg":""}})))}));
+  specs.push({title:"2. % of net sales",groups,cols,rows:prows,note:""});
+  if(m.hasHC){const lines=[["Direct labour (MOD)",h=>h.dir],["Indirect workers",h=>h.ind],["Admin / shift supervisors",h=>h.adm],["Managers",h=>h.mgr],["Total indirect labour",h=>h.ind+h.adm+h.mgr],["TOTAL HEADCOUNT",h=>h.dir+h.ind+h.adm+h.mgr]];
+   const wrows=lines.map(([l,g],j)=>({label:l,kind:j===5?"ebitda":j===4?"b":"n",cells:[].concat(...pls.map(pl=>ys.map(i=>{const h=m.hcOf(pl,i);return{t:h?fm(g(h),0):"—",c:""}})))}));
+   wrows.push({label:"Direct labour share of total HC",kind:"pct",cells:[].concat(...pls.map(pl=>ys.map(i=>{const h=m.hcOf(pl,i),t=h?h.dir+h.ind+h.adm+h.mgr:0;return{t:t?fm(h.dir/t*100,1)+" %":"—",c:""}})))});
+   specs.push({title:"3. Workforce structure — headcount",groups,cols,rows:wrows,note:"Headcount from the Business Case workforce model"+(A?"; automated scenario: direct labour scaled with the direct-labour cost of the console":"")+"."})}}
+ return specs}
+function exMsgs(m){const pls=m.pls,A=pls.includes("TNA"),i=m.ss,y=m.yrs[i],cs=m.cols,E=pl=>cs[pl][i].ebitda,S_=pl=>cs[pl][i].sales,pc=pl=>S_(pl)?fp(E(pl)/S_(pl)):"—",f=x=>fm(x/1000,0)+" k€";
+ const cum=(pl,k)=>cs[pl].reduce((a,c)=>a+exVal(c,k),0),L=[];
+ L.push(`EBITDA ${y}: Tangier <b>${f(E("TNG"))}</b> (${pc("TNG")}), Zaragoza <b>${f(E("ZGZ"))}</b> (${pc("ZGZ")})${A?`, automated line <b>${f(E("TNA"))}</b> (${pc("TNA")})`:""}.`);
+ const dr=EX_LINES.filter(l=>l[2]==="cost"&&l[0]!=="da").map(([k,l])=>({l,d:exVal(cs.ZGZ[i],k)-exVal(cs.TNG[i],k)})).filter(x=>Math.abs(x.d)>1000).sort((a,b)=>Math.abs(b.d)-Math.abs(a.d)).slice(0,3);
+ L.push(`Gap Zaragoza − Tangier on EBITDA ${y}: <b>${E("ZGZ")-E("TNG")>=0?"+":"−"}${f(Math.abs(E("ZGZ")-E("TNG")))}</b>. Main cost differences: ${dr.map(x=>`${x.l.split(" (")[0].toLowerCase()} ${x.d>=0?"+":"−"}${f(Math.abs(x.d))}`).join(", ")}.`);
+ L.push(`Cumulative EBITDA ${m.yrs[0]}-${m.yrs[m.yrs.length-1]}: Tangier <b>${f(cum("TNG","ebitda"))}</b>, Zaragoza <b>${f(cum("ZGZ","ebitda"))}</b>${A?`, automated line <b>${f(cum("TNA","ebitda"))}</b>`:""}.`);
+ if(A){const d=E("TNA")-E("ZGZ"),dc=cum("TNA","ebitda")-cum("ZGZ","ebitda"),h0=m.hcOf("ZGZ",i),h1=m.hcOf("TNA",i);
+  L.push(`Automated line vs Zaragoza: EBITDA ${y} <b>${d>=0?"+":"−"}${f(Math.abs(d))}</b>, cumulative <b>${dc>=0?"+":"−"}${f(Math.abs(dc))}</b>${h0&&h1?`; direct headcount ${fm(h0.dir,0)} → ${fm(h1.dir,0)}`:""}.`)}
+ return L}
+/* ----- renderers ----- */
+const EXK={net:"background:#9ccc65;font-weight:800",ebitda:"background:#f8ebe0;font-weight:800",res:"font-weight:800",b:"font-weight:700",pct:"color:#b91c1c;font-style:italic",n:""};
+function exTable(sp){const ng=sp.groups;
+ return `<div class="ext-t"><div class="ext-h">${sp.title}</div><table class="exT"><tr>${ng.map(g=>`<th colspan="${g.span}" style="background:${g.color||"transparent"};color:#fff;text-align:center">${g.l}</th>`).join("")}</tr><tr>${sp.cols.map((c,j)=>`<th style="background:#3a4a2b;color:#fff;${j?"text-align:right":"text-align:left"}">${c}</th>`).join("")}</tr>
+ ${sp.rows.map(r=>`<tr style="${EXK[r.kind]||""}"><td style="text-align:left">${r.label}</td>${r.cells.map(c=>`<td style="text-align:right;${c.c==="neg"?"color:#b91c1c":c.c==="pos"?"color:#15803d":""}">${c.t}</td>`).join("")}</tr>`).join("")}</table>${sp.note?`<div class="ext-n">${sp.note}</div>`:""}</div>`}
+const exTitle=view=>view==="ss"?"CX735 — ZARAGOZA vs TANGIER · Executive summary":"CX735 — ZARAGOZA vs TANGIER · Executive summary, year by year";
+const exBasis=()=>"Net sales: "+(bcyBasis==="bc"?"Business Case":"console prices × volumes")+" · volumes: "+((S.bcy&&S.bcy.volMode)==="file"?"Business Case file":(S.bcy&&S.bcy.volMode)==="manual"?"manual":"calculated from net sales")+" · fixed-cost recovery "+(S.recovery?"ON":"OFF")+" · Tangier overhead "+(S.alignZ?"aligned to Zaragoza":"own Business Case");
+function exSlide(view){const m=exModel(),specs=exSpecs(m,view),msgs=view==="ss"?exMsgs(m):[];
+ return `<style>.exw{width:100%;overflow:hidden}.exs{background:#fff;border:1px solid #cbd5e1;border-radius:6px;padding:16px 22px;box-sizing:border-box;transform-origin:top left;font-family:inherit;color:#0f1b33;position:relative}
+ .exs h1{margin:0;font-size:22px;color:#0f1b33}.exs .ext-sub{font-size:11px;color:#64748b;margin:2px 0 8px}.ext-h{font-weight:800;font-size:12.5px;color:#0f1b33;margin:8px 0 3px}.exT{border-collapse:collapse;width:100%;font-size:10px;table-layout:fixed}.exT th,.exT td{padding:1px 5px;line-height:1.3;border:1px solid #e2e8f0;white-space:nowrap;overflow:hidden}.exT td:first-child,.exT th:first-child{width:215px;white-space:normal}.ext-n{font-size:9px;color:#64748b;margin-top:2px}
+ .exm{margin-top:8px;border-left:5px solid #3a4a2b;background:#f1f5ea;padding:6px 12px;font-size:11px;line-height:1.5}.exf{position:absolute;left:22px;right:22px;bottom:8px;font-size:9px;color:#94a3b8;display:flex;justify-content:space-between}</style>
+ <div class="exw" id="exw"><div class="exs" id="exs" style="width:1123px;height:794px"><div style="display:flex;justify-content:space-between;align-items:flex-start"><div><h1>${exTitle(view)}</h1><div class="ext-sub">${exUnit==="k"?"EUR thousands":"EUR"} · ${view==="ss"?"steady state = "+m.yrs[m.ss]+"; cumulative = "+m.yrs[0]+"-"+m.yrs[m.yrs.length-1]:"years "+m.yrs[m.prod[0]]+"-"+m.yrs[m.prod[m.prod.length-1]]} · ${m.pls.map(pl=>PN[pl]).join(" · ")}</div></div><img src="logo.png" style="height:34px" alt=""></div>
+ ${specs.map(exTable).join("")}${msgs.length?`<div class="exm"><b>Key messages</b><ul style="margin:3px 0 0 16px;padding:0">${msgs.map(x=>`<li>${x}</li>`).join("")}</ul></div>`:""}
+ <div class="exf"><span>${exBasis()}</span><span>ADLER Pelzer Group · confidential · ${new Date().toLocaleDateString("en-GB")}</span></div></div></div>`}
+function fitSlide(){const w=document.getElementById("exw"),s=document.getElementById("exs");if(!w||!s)return;const k=Math.min(1,w.clientWidth/1123);s.style.transform="scale("+k+")";w.style.height=(794*k)+"px"}
+window.addEventListener("resize",()=>fitSlide());
+function pageEX(){if(!S.bcy)return `<div class="card"><h2>Executive summary</h2><p class="sub">The summary uses the Business Case data by year. Load the Business Case Excel first (Basic inputs → “Update from the Business Case”).</p><div class="row"><button class="btn" onclick="go('inp')">Go to Basic inputs</button></div></div>`;
+ const m=exModel(),ys=m.prod.map(i=>m.yrs[i]);
+ const ctl=`<div class="card" style="padding:12px 16px"><div class="row" style="gap:12px"><div class="tabs" style="margin:0"><button class="${exView==="ss"?"on C":""}" onclick="exView='ss';render()">Steady state &amp; cumulative</button><button class="${exView==="yoy"?"on C":""}" onclick="exView='yoy';render()">Year by year</button></div>
+  <select style="width:auto" onchange="exUnit=this.value;render()"><option value="k" ${exUnit==="k"?"selected":""}>EUR thousands</option><option value="eur" ${exUnit==="eur"?"selected":""}>EUR</option></select>
+  ${exView==="ss"?`<label>Steady-state year <select style="width:auto" onchange="exSS=+this.value;render()">${ys.map(y=>`<option ${y===m.yrs[m.ss]?"selected":""}>${y}</option>`).join("")}</select></label>`:""}
+  ${PL.includes("TNA")?`<label style="display:flex;gap:6px;align-items:center"><input type="checkbox" style="width:auto;min-width:0" ${exA?"checked":""} onchange="exA=this.checked;render()"> include the automated scenario</label>`:""}
+  <span style="flex:1"></span><button class="btn" data-ok="1" onclick="exPDF('${exView}')">⬇ PDF · this page (A4 landscape)</button><button class="btn sec" data-ok="1" onclick="exPDF('both')">⬇ PDF · both pages</button></div>
+  <p class="sub" style="margin:8px 0 0">Linked to the whole console: the figures come from the P&amp;L “Business Case format” (volumes, Business Case data and your manual values in Basic inputs, material cost cards, machines, crews, the two switches and the automated scenario). Each page of the PDF is <b>A4 landscape (297 × 210 mm)</b>: in PowerPoint set the slide size to A4 and insert the page as a picture. ${m.hasHC?"":`<b style="color:#b45309">The workforce section needs the Business Case file to be loaded again (it adds the headcount rows).</b>`}</p></div>`;
+ return ctl+exSlide(exView)}
+async function exPDF(which){if(!window.jspdf){alert("PDF library not loaded");return}if(!S.bcy)return;
+ const doc=new window.jspdf.jsPDF({orientation:"landscape",unit:"pt",format:"a4"}),W=doc.internal.pageSize.getWidth(),H=doc.internal.pageSize.getHeight(),M0=24,lg=await logoData(),m=exModel();
+ const views=which==="both"?["ss","yoy"]:[which],NAVY=[15,27,51],GREEN=[58,74,43];
+ const FILL={net:[156,204,101],ebitda:[248,235,224]};
+ views.forEach((view,vi)=>{if(vi)doc.addPage();const specs=exSpecs(m,view),msgs=view==="ss"?exMsgs(m):[];
+  if(lg)doc.addImage(lg.url,"PNG",W-M0-90,16,90,90*lg.h/lg.w);
+  doc.setFont("helvetica","bold").setFontSize(15).setTextColor(...NAVY).text(exTitle(view),M0,34);
+  doc.setFont("helvetica","normal").setFontSize(7.5).setTextColor(100).text((exUnit==="k"?"EUR thousands":"EUR")+"  |  "+(view==="ss"?"steady state = "+m.yrs[m.ss]+"; cumulative = "+m.yrs[0]+"-"+m.yrs[m.yrs.length-1]:"years "+m.yrs[m.prod[0]]+"-"+m.yrs[m.prod[m.prod.length-1]])+"  |  "+m.pls.map(pl=>PN[pl]).join(" · "),M0,46);
+  let y=54;
+  for(const sp of specs){doc.setFont("helvetica","bold").setFontSize(8.5).setTextColor(...NAVY).text(sp.title,M0,y+8);
+   const head=[sp.groups.map(g=>({content:pdfT(g.l),colSpan:g.span,styles:{halign:"center",fillColor:g.color?g.color.match(/\w\w/g).map(h=>parseInt(h,16)):[255,255,255],textColor:255}})),sp.cols.map((c,j)=>({content:pdfT(c),styles:{halign:j?"right":"left",fillColor:GREEN,textColor:255}}))];
+   const body=sp.rows.map(r=>[{content:pdfT(r.label),styles:{halign:"left"}}].concat(r.cells.map(c=>({content:pdfT(c.t),styles:{halign:"right",textColor:c.c==="neg"?[185,28,28]:c.c==="pos"?[21,128,61]:[15,27,51]}}))));
+   const labW=view==="ss"?160:158,nC=sp.cols.length-1,cw=(W-2*M0-labW)/nC;
+   doc.autoTable({startY:y+11,head,body,theme:"grid",styles:{fontSize:view==="ss"?8:6.9,cellPadding:{top:view==="ss"?2.3:1.5,bottom:view==="ss"?2.3:1.5,left:2,right:2},lineColor:[226,232,240],lineWidth:.3,overflow:"hidden",cellWidth:"wrap"},headStyles:{fontStyle:"bold"},margin:{left:M0,right:M0},tableWidth:W-2*M0,
+    columnStyles:Object.assign({0:{cellWidth:labW}},Object.fromEntries(Array.from({length:nC},(_,i)=>[i+1,{cellWidth:cw}]))),
+    didParseCell:d=>{if(d.section!=="body")return;const k=sp.rows[d.row.index].kind;if(k==="net"||k==="ebitda"){d.cell.styles.fillColor=FILL[k];d.cell.styles.fontStyle="bold"}else if(k==="res"||k==="b")d.cell.styles.fontStyle="bold";else if(k==="pct"){d.cell.styles.fontStyle="italic";if(!d.cell.styles.textColor||d.cell.styles.textColor[0]===15)d.cell.styles.textColor=[185,28,28]}}});
+   y=doc.lastAutoTable.finalY+(sp.note?6:3);if(sp.note){doc.setFont("helvetica","italic").setFontSize(5.8).setTextColor(110).text(doc.splitTextToSize(pdfT(sp.note),W-2*M0),M0,y);y+=8}}
+  if(msgs.length){const lines=msgs.flatMap(t=>doc.splitTextToSize("• "+pdfT(t.replace(/<[^>]+>/g,"")),W-2*M0-24)),h=lines.length*8.6+14;
+   doc.setFillColor(241,245,234).rect(M0,y+2,W-2*M0,h,"F");doc.setFillColor(...GREEN).rect(M0,y+2,3,h,"F");doc.setFont("helvetica","bold").setFontSize(7.5).setTextColor(...NAVY).text("Key messages",M0+9,y+11);
+   doc.setFont("helvetica","normal").setFontSize(7).setTextColor(30).text(lines,M0+9,y+20);y+=h+4}
+  doc.setFont("helvetica","normal").setFontSize(6.3).setTextColor(130).text(exBasis(),M0,H-12);doc.text("ADLER Pelzer Group - Product cost console  |  confidential  |  "+new Date().toLocaleDateString("en-GB"),W-M0,H-12,{align:"right"});
+  if(y>H-18)console.warn("exPDF: content ends at",y,"of",H)});
+ doc.save(which==="both"?"Executive_summary.pdf":which==="ss"?"Executive_summary_steady_state.pdf":"Executive_summary_year_by_year.pdf")}
 
 function pagePrd(){return `<div class="row"><button class="btn" onclick="newProd()">+ New product code</button></div><div class="pgrid">${S.products.map(p=>{
  const box=pl=>{const c=pcalc(p,pl);return `<div class="${PCLS[pl]}"><span>${PN[pl]}</span><b>${fm(c.ic,3)} €</b><span>${c.complete?"margin "+fp(c.marginPct):"processes to enter"}</span></div>`};
@@ -1082,6 +1201,7 @@ function pageBur(){if(bpl==="CMP")return pageBurCmp();const pl=bpl,p=S.plants[pl
  return h}
 /* ======================= PDF REPORT ======================= */
 function logoData(){return new Promise(res=>{if(window._logo)return res(window._logo);const im=new Image();im.onload=()=>{try{const c=document.createElement("canvas");c.width=im.width;c.height=im.height;c.getContext("2d").drawImage(im,0,0);res(window._logo={url:c.toDataURL("image/png"),w:im.width,h:im.height})}catch(e){res(null)}};im.onerror=()=>res(null);im.src="logo.png"})}
+const pdfT=t=>String(t).replace(/\u2212/g,"-").replace(/Δ/g,"Diff").replace(/→/g,"->");
 const pf=v=>isFinite(v)?fm(v,3):"-",pp=v=>isFinite(v)?(v*100).toFixed(1)+" %":"-";
 function mcPdf(tbl,p,y){const m=mcCalc(p.mc),M=mpOf(S),r=x=>({content:x,styles:{halign:"right"}}),b=x=>({content:x,styles:{fontStyle:"bold"}});
  const body=p.mc.lines.map((l,i)=>[l.code,l.desc,l.supplier+(l.basis==="Estimate"?" (estimate)":""),(num(l.w)>0?fm(l.w,0)+" x "+fm(l.h,0):""),l.unit,fm(l.qty,4),fm(l.price,4)+" "+l.cur,l.inco,pp(l.pcPct),fm(m.rows[i].cost,4),pp(m.rows[i].cost/(m.mat||1))]);
@@ -1148,7 +1268,7 @@ async function reportPDF(full,onlyId){
 
 /* ======================= ACCESSO, DATI CONDIVISI, SALVATAGGIO ======================= */
 const API=window.ADLER_API||"";
-const BUILD=20261113;let STALE=false,verT=null;
+const BUILD=20261114;let STALE=false,verT=null;
 let TOKEN="",ME=null,REM={},conflicts={},timer=null,busy=false,loaded=false,pendingRender=false,pollT=null;
 try{TOKEN=sessionStorage.getItem("adl_t")||"";ME=JSON.parse(sessionStorage.getItem("adl_u")||"null")}catch(e){}
 const readonly=()=>ME&&ME.ruolo==="viewer";
