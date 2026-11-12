@@ -30,3 +30,10 @@ Pagina web con login (ID + password) e dati condivisi tra più utenti.
 - Backup manuale: pulsante **⬇ Salva dati (.json)** nella barra laterale.
 - Non condividere il Google Sheet con nessuno: l'accesso passa solo dalla pagina.
 - Non mettere mai dati aziendali o password in questo repository (è pubblico).
+
+## Versione minima dei client (protezione dei dati condivisi)
+`apps-script/Code.gs` rifiuta `apiSaveDoc` / `apiDeleteDoc` provenienti da pagine più vecchie di `MIN_VER`
+(la pagina invia `ver:BUILD`). Una scheda del browser rimasta aperta con una versione vecchia non può più
+cancellare o sovrascrivere i dati nuovi. Ad ogni rilascio che cambia il formato dei dati: aumentare `BUILD` in
+`index.html`, e se serve `MIN_VER` in `Code.gs`, poi ridistribuire lo script (Deploy → Manage deployments →
+Edit → New version).

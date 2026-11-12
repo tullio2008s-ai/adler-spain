@@ -14,7 +14,8 @@ var NOME_ARCHIVIO = 'Costo Prodotto ADLER – ARCHIVIO PRIVATO';
 var TOKEN_TTL = 6 * 60 * 60;      // 6 ore (massimo consentito da CacheService)
 var MAX_TENTATIVI = 6;            // tentativi di login errati ...
 var BLOCCO_SEC = 15 * 60;         // ... per utente, ogni 15 minuti
-var MAX_DOC = 45000;              // limite caratteri per cella Google Sheets: 50.000
+var MAX_DOC = 45000;
+var MIN_VER = 20261112;           // pages older than this cannot write (they would delete newer data)              // limite caratteri per cella Google Sheets: 50.000
 
 /* ---------- utilità foglio ---------- */
 function ss_() {
@@ -173,6 +174,7 @@ function doPost(e) {
     if (fn === 'apiLogin') return risposta_({ data: apiLogin(a[0], a[1]) });
     if (!ROTTE[fn]) throw new Error('Unknown function');
     var ses = sessione_(r.token);
+    if ((fn === 'apiSaveDoc' || fn === 'apiDeleteDoc') && !(Number(r.ver) >= MIN_VER)) throw new Error('Your page is out of date: reload it (Cmd+Shift+R) before saving');
     return risposta_({ data: ROTTE[fn].apply(null, [ses].concat(a)) });
   } catch (err) {
     return risposta_({ error: String(err.message || err), status: err.status || 400 });

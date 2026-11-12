@@ -272,7 +272,8 @@ function allChecks(st=S){const L=[],add=(l,pl,area,msg,page,prod)=>L.push({l,pl,
   for(const pr of cards){const nm=pr.code+" · "+pr.desc,m=mcCalc(pr.mc,st);let e=0,ec=0;
    pr.mc.lines.forEach((l,i)=>{if(l.basis==="Estimate"){e++;ec+=m.rows[i].cost}if(!(num(l.price)>0))add("y",null,"Materials · "+nm,"Price missing on line “"+(l.desc||l.code)+"”","pd",pr.id);if(!(num(l.qty)>0))add("y",null,"Materials · "+nm,"Quantity missing on line “"+(l.desc||l.code)+"”","pd",pr.id)});
    if(e)add("y",null,"Materials · "+nm,e+" of "+pr.mc.lines.length+" lines are estimated prices ("+fp(ec/(m.mat||1))+" of the material cost)","pd",pr.id);
-   const ref=pr.mc.ref;if(ref){if(ref.total&&Math.abs(m.total/ref.total-1)>.0005)add("y",null,"Materials · "+nm,"Material cost "+fm(m.total,4)+" differs from the imported file ("+fm(ref.total,4)+"): the card was edited","pd",pr.id);
+   const ref=pr.mc.ref;if(ref&&num(ref.vol)>0){const vf=Math.round(num(ref.vol)*1000),vz=num(pr.v.ZGZ.volume);if(Math.abs(vz/vf-1)>.01)add("y",null,"Volume · "+nm,"Annual volume "+fm(vz,0)+" differs from the BOM file ("+fm(vf,0)+")","pd",pr.id)}
+   if(ref){if(ref.total&&Math.abs(m.total/ref.total-1)>.0005)add("y",null,"Materials · "+nm,"Material cost "+fm(m.total,4)+" differs from the imported file ("+fm(ref.total,4)+"): the card was edited","pd",pr.id);
     if(pnValid(ref.pn)&&String(ref.pn)!==String(pr.code))add("y",null,"Materials · "+nm,"Part number in the BOM file ("+ref.pn+") differs from the console code ("+pr.code+")","pd",pr.id)}}
   if(cards.length&&M.scrapOn!==false&&!M.scrapOnConv)add("y",null,"Materials","Plant scrap % is also charged on materials: material scrap is counted twice (card + plant scrap)","inp")}
  L.sort((a,b)=>(a.l==="o"?0:1)-(b.l==="o"?0:1));return L}
@@ -376,15 +377,22 @@ function mcCancel(){MCIMP=null;render()}
 function mcApply(){if(!MCIMP)return;const ids=MCIMP.parts.map(x=>x.pid).filter(Boolean);if(new Set(ids).size!==ids.length){alert("Two parts of the file are assigned to the same product: fix the assignment.");return}
  if(!ids.length){alert("No part assigned to a product");return}
  let nCode=0;const ex=ids.filter(id=>{const p=S.products.find(x=>x.id===id);return p&&p.mc&&p.mc.lines&&p.mc.lines.length}).length;
- if(!confirm("Import the cost cards of "+ids.length+" products"+(ex?" ("+ex+" already have a card: it is REPLACED, manual edits are lost)":"")+"?\n\nThe product codes of the table become the official ones; the changed codes are marked in red “To confirm”. Material scrap "+fp(MCIMP.params.scrap)+" and overhead "+fp(MCIMP.params.moh)+" are coefficients in Basic inputs (switchable). Selling prices and volumes are NOT changed."))return;
- for(const x of MCIMP.parts){if(!x.pid)continue;const p=S.products.find(y=>y.id===x.pid);if(ccAdopt(p,x.pn))nCode++;p.mc={on:true,lines:JSON.parse(JSON.stringify(x.lines)),ref:{file:MCIMP.file,no:x.no,pn:x.pn,desc:x.desc,vol:x.vol,sp:x.sp,calc:x.calc,total:x.fileTotal,legacy:x.legacy}}}
- {const cur=mpOf(S);S.matp=Object.assign(MATP0(),cur,{scrap:MCIMP.params.scrap,moh:MCIMP.params.moh,eurMad:MCIMP.params.eurMad,gbpPerEur:MCIMP.params.gbpPerEur})}MCIMP=null;CAL={};save();render()}
+ if(!confirm("Import the cost cards of "+ids.length+" products"+(ex?" ("+ex+" already have a card: it is REPLACED, manual edits are lost)":"")+"?\n\nThe product codes of the table become the official ones; the changed codes are marked in red “To confirm”. Material scrap "+fp(MCIMP.params.scrap)+" and overhead "+fp(MCIMP.params.moh)+" are coefficients in Basic inputs (switchable). Selling prices are NOT changed."+(MCIMP.vol!==false?" The annual volumes are set to those of the file.":" Volumes are NOT changed.")))return;
+ for(const x of MCIMP.parts){if(!x.pid)continue;const p=S.products.find(y=>y.id===x.pid);if(ccAdopt(p,x.pn))nCode++;p.mc={on:true,lines:JSON.parse(JSON.stringify(x.lines)),ref:{file:MCIMP.file,no:x.no,pn:x.pn,desc:x.desc,vol:x.vol,sp:x.sp,calc:x.calc,total:x.fileTotal,legacy:x.legacy}};if(MCIMP.vol!==false&&x.vol>0){p.v.TNG.volume=p.v.ZGZ.volume=Math.round(x.vol*1000)}}
+ {const cur=mpOf(S);S.matp=Object.assign(MATP0(),cur,{scrap:MCIMP.params.scrap,moh:MCIMP.params.moh,eurMad:MCIMP.params.eurMad,gbpPerEur:MCIMP.params.gbpPerEur})}MCIMP=null;CAL={};save();MCMSG="✓ Cost cards imported.";render();saveNow().then(sv=>{MCMSG="✓ Cost cards imported."+svTxt(sv);render(true)})}
+function mcVolFromFile(){if(readonly()){alert("Read-only account");return}const L=S.products.filter(p=>p.mc&&p.mc.ref&&num(p.mc.ref.vol)>0);
+ if(!L.length){alert("No product has a volume in the imported BOM file");return}
+ const ch=L.map(p=>({p,from:num(p.v.ZGZ.volume),fromT:num(p.v.TNG.volume),to:Math.round(num(p.mc.ref.vol)*1000)})).filter(x=>x.from!==x.to||x.fromT!==x.to);
+ if(!ch.length){alert("The console volumes already match the BOM file");return}
+ if(!confirm("Set the annual volume (Tangier, Zaragoza and the automated scenario) of "+ch.length+" products to the volume of the BOM file?\n\n"+ch.map(x=>x.p.code+": "+fm(x.from,0)+" → "+fm(x.to,0)).join("\n")))return;
+ for(const x of ch){x.p.v.TNG.volume=x.to;x.p.v.ZGZ.volume=x.to}CAL={};save();MCMSG="✓ Annual volumes of "+ch.length+" products set to those of the BOM file.";render();saveNow().then(sv=>{MCMSG="✓ Annual volumes of "+ch.length+" products set to those of the BOM file."+svTxt(sv);render(true)})}
 function mcPreview(){if(!MCIMP)return"";const opts=sel=>`<option value="">— do not import —</option>`+S.products.map(p=>`<option value="${p.id}" ${p.id===sel?"selected":""}>${esc(p.code)} · ${esc(p.desc)}</option>`).join("");
- return `<div id="mcprev" class="card" style="border:2px solid var(--acc)"><h2>Import preview · ${esc(MCIMP.file)}</h2><p class="sub">Check that each part of the file goes to the right product. “Total (recomputed)” is calculated here from the lines with the parameters of the file and must equal the total of the file. Prices and volumes of the file are NOT imported (they are shown in the summary for comparison only).</p>
+ return `<div id="mcprev" class="card" style="border:2px solid var(--acc)"><h2>Import preview · ${esc(MCIMP.file)}</h2><p class="sub">Check that each part of the file goes to the right product. “Total (recomputed)” is calculated here from the lines with the parameters of the file and must equal the total of the file. Selling prices of the file are NOT imported; the volumes only if the box below is ticked.</p>
  <table class="tw"><tr><th>#</th><th>Part (file)</th><th>Part number (file)</th><th>Lines</th><th class="n">Total file €/pc</th><th class="n">Total recomputed €/pc</th><th>Assign to product</th><th>Product code</th></tr>
  ${MCIMP.parts.map((x,i)=>{const t=mcImpTotal(x),ok=Math.abs(t-x.fileTotal)<0.0006,p=S.products.find(y=>y.id===x.pid),cm=p&&pnValid(x.pn)&&String(p.code)!==String(x.pn);
   return `<tr><td>${x.no}</td><td><b>${esc(x.desc)}</b></td><td>${esc(x.pn)}</td><td class="n">${x.lines.length}</td><td class="n">${fm(x.fileTotal,4)}</td><td class="n ${ok?"":"wo"}">${fm(t,4)} ${ok?"✓":"≠"}</td>
   <td><select onchange="MCIMP.parts[${i}].pid=this.value;render()">${opts(x.pid)}</select></td><td class="${cm?"wr":""}">${p?(cm?"code becomes "+esc(x.pn)+" (was "+esc(p.code)+") · to confirm":(pnValid(x.pn)?"same code":"no code in the table: keeps "+esc(p.code))):""}</td></tr>`}).join("")}</table>
+ <label style="display:flex;gap:8px;align-items:center;margin-top:8px;font-weight:600"><input type="checkbox" style="width:auto;min-width:0" ${MCIMP.vol!==false?"checked":""} onchange="MCIMP.vol=this.checked"> Also set the annual volumes (Tangier and Zaragoza) to those of the file</label>
  <div class="row"><button class="btn" onclick="mcApply()">Import the assigned cost cards</button><button class="btn sec" onclick="mcCancel()">Cancel</button></div></div>`}
 
 /* ======================= PAGINE ======================= */
@@ -470,7 +478,8 @@ function pageMat(){const M=mpOf(S),P=S.products;let h="";
  <tr class="tot"><td colspan="11">Total annual material cost (console volumes)</td>${O("fm(mcAnnual(),0)","tot")}<td></td><td></td><td></td></tr></table></div>`;
  const withRef=P.filter(p=>p.mc&&p.mc.ref);
  if(withRef.length){const tf=withRef.reduce((a,p)=>a+p.mc.ref.vol*p.mc.ref.total,0),df=(a,b)=>b?a/b-1:NaN,hl=(a,b)=>(b>0&&Math.abs(a/b-1)>.01)?" wy":"";
-  h+=`<div class="card"><h2>Imported file vs console: volumes and selling prices</h2><p class="sub">The file carries its own volumes (k pcs) and selling prices, which are <b>not</b> imported. Yellow = difference above 1 %. With the volumes of the file the annual material cost is <b>${fm(tf,0)} k€</b>; with the console volumes it is <b>${fm(mcAnnual(),0)} k€</b>.</p>
+  h+=`<div class="card"><h2>Imported file vs console: volumes and selling prices</h2><p class="sub">The file carries its own volumes (k pcs) and selling prices. Prices are <b>not</b> imported. Yellow = difference above 1 %. The button below sets the console volumes to those of the file. With the volumes of the file the annual material cost is <b>${fm(tf,0)} k€</b>; with the console volumes it is <b>${fm(mcAnnual(),0)} k€</b>.</p>
+  <div class="row" style="margin:6px 0"><button class="btn" onclick="mcVolFromFile()">Set the console volumes to those of the file</button></div>
   <table class="tw"><tr><th>Product</th><th>Part number: file</th><th>Part number: console</th><th class="n">Volume file</th><th class="n">Volume console</th><th class="n">Δ %</th><th class="n">Price file €</th><th class="n">Price console €</th><th class="n">Δ %</th></tr>
   ${withRef.map(p=>{const r=p.mc.ref,vc=num(p.v.ZGZ.volume)/1e3,pc=num(p.v.ZGZ.price);return `<tr><td>${esc(p.desc)}</td><td class="${nzc(r.pn)===nzc(p.code)?"":"wy"}">${esc(r.pn)}</td><td>${esc(p.code)}</td><td class="n">${fm(r.vol,1)}</td><td class="n${hl(vc,r.vol)}">${fm(vc,1)}</td><td class="n">${fp(df(vc,r.vol))}</td><td class="n">${fm(r.sp,2)}</td><td class="n${pc>0?hl(pc,r.sp):" wy"}">${pc>0?fm(pc,3):"—"}</td><td class="n">${pc>0?fp(df(pc,r.sp)):"—"}</td></tr>`}).join("")}</table></div>`}
  return h+pageMatLegacy()}
@@ -655,7 +664,7 @@ async function bcyLoadFile(el){const f=el.files&&el.files[0];if(!f)return;if(rea
   const refY=o.years.includes(2030)?2030:o.years[o.years.length-2];
   if(S.bcy&&!confirm("Replace the year-by-year data already loaded from the Business Case?")){BCYMSG="";render(true);return}
   S.bcy=Object.assign({},S.bcy?{vOv:S.bcy.vOv,sOv:S.bcy.sOv,refVeh:S.bcy.refVeh,refSales:S.bcy.refSales,volMode:S.bcy.volMode,extend:S.bcy.extend}:{},{file:f.name,years:o.years,ref:refY,plants:o.plants});save();
-  BCYMSG="✓ “"+f.name+"”: years "+o.years[0]+"-"+o.years[o.years.length-1]+" loaded for Tangier and Zaragoza (vehicles per year, fixed and indirect costs, D&A, subsidies, HQ fee, financing). Volumes are calculated from net sales with the reference driver shown below.";render()}
+  BCYMSG="✓ “"+f.name+"”: years "+o.years[0]+"-"+o.years[o.years.length-1]+" loaded for Tangier and Zaragoza (vehicles per year, fixed and indirect costs, D&A, subsidies, HQ fee, financing). Volumes are calculated from net sales with the reference driver shown below.";render();const sv=await saveNow();BCYMSG+=svTxt(sv);render(true)}
  catch(e){BCYMSG="⚠ Could not process “"+f.name+"”: "+(e&&e.message?e.message:e);render(true);alert(BCYMSG)}}
 const parseNumIt=x=>{x=String(x).replace(/[€\s]/g,"");if(x==="")return NaN;if(x.includes(","))x=x.replace(/\./g,"").replace(",",".");else if(/^\d{1,3}(\.\d{3})+$/.test(x))x=x.replace(/\./g,"");return parseFloat(x)};
 function bcyYears(){const B=S.bcy,last=B.years[B.years.length-1],ys=B.years.slice();
@@ -1082,10 +1091,11 @@ async function reportPDF(full,onlyId){
 
 /* ======================= ACCESSO, DATI CONDIVISI, SALVATAGGIO ======================= */
 const API=window.ADLER_API||"";
+const BUILD=20261112;let STALE=false,verT=null;
 let TOKEN="",ME=null,REM={},conflicts={},timer=null,busy=false,loaded=false,pendingRender=false,pollT=null;
 try{TOKEN=sessionStorage.getItem("adl_t")||"";ME=JSON.parse(sessionStorage.getItem("adl_u")||"null")}catch(e){}
 const readonly=()=>ME&&ME.ruolo==="viewer";
-async function call(fn,...args){let r;try{r=await fetch(API,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify({fn,args,token:TOKEN})})}catch(e){throw new Error("Server unreachable")}
+async function call(fn,...args){let r;try{r=await fetch(API,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify({fn,args,token:TOKEN,ver:BUILD})})}catch(e){throw new Error("Server unreachable")}
  const j=await r.json();if(j.status===401&&fn!=="apiLogin"){logout(true);throw new Error("Session expired")}if(j.error)throw new Error(j.error);return j.data}
 function setStatus(t,bad){const e=document.getElementById("stat");if(e){e.textContent=t;e.className="badge "+(bad?"b-es":"b-bc")}}
 function docsOf(st){const d={meta:{name:st.name||"",ids:st.products.map(p=>p.id),alignZ:!!st.alignZ,alignBasis:st.alignBasis||"pool",recovery:!!st.recovery},notes:st.notes||{},guide:st.guide||{},materials:st.materials};if(st.matp&&JSON.stringify(st.matp)!==JSON.stringify(MATP0()))d.meta.matp=st.matp;if(st.bcy)d.meta.bcy=st.bcy;if(st.check)d.check=st.check;for(const k of PL)d["plant:"+k]=st.plants[k];for(const p of st.products)d["prod:"+p.id]=p;return d}
@@ -1096,18 +1106,23 @@ function applyDoc0(k,val){if(k==="meta"){S.name=val.name;S.alignZ=!!val.alignZ;S
  else if(k.startsWith("prod:")){const i=S.products.findIndex(p=>p.id===val.id);if(i>=0)S.products[i]=val;else S.products.push(val);if(S._ids)S.products.sort((a,b)=>S._ids.indexOf(a.id)-S._ids.indexOf(b.id))}}
 function dropDoc(k){if(k.startsWith("prod:"))S.products=S.products.filter(p=>"prod:"+p.id!==k)}
 function save(){if(!API){try{localStorage.setItem("adlerLocal",JSON.stringify(S))}catch(e){}return}
- if(readonly()||!loaded)return;setStatus("unsaved changes…",true);clearTimeout(timer);timer=setTimeout(flush,1500)}
-async function flush(){if(busy){timer=setTimeout(flush,800);return}busy=true;
+ if(readonly()||!loaded||STALE)return;setStatus("unsaved changes…",true);clearTimeout(timer);timer=setTimeout(flush,1500)}
+async function flush(){if(STALE)return;if(busy){timer=setTimeout(flush,800);return}busy=true;
  try{const d=docsOf(S);
   for(const [k,val] of Object.entries(d)){const js=JSON.stringify(val);if(REM[k]&&REM[k].json===js)continue;if(conflicts[k])continue;
    const r=await call("apiSaveDoc",k,js,REM[k]?REM[k].v:0);
    if(r.conflict){conflicts[k]=r.current;showConflicts()}else REM[k]={v:r.v,json:js}}
-  for(const k of Object.keys(REM))if(!(k in d)&&!conflicts[k]){await call("apiDeleteDoc",k,REM[k].v);delete REM[k]}
+  for(const k of Object.keys(REM))if(!(k in d)&&!conflicts[k]&&k.startsWith("prod:")){await call("apiDeleteDoc",k,REM[k].v);delete REM[k]}
   if(!Object.keys(conflicts).length)setStatus("saved "+new Date().toLocaleTimeString("en-GB"))}
  catch(e){setStatus("SAVE ERROR: "+e.message,true)}busy=false}
 function showConflicts(){const ks=Object.keys(conflicts),el=document.getElementById("confl");if(!ks.length){el.classList.add("hid");return}
  el.classList.remove("hid");el.innerHTML=ks.map(k=>`<div class="warn"><b>Conflict on “${esc(k)}”</b>: ${esc(conflicts[k].by)} saved a newer version (${esc(conflicts[k].ts)}). <button class="btn sec" onclick="resolve('${esc(k)}','theirs')">Use their version (I lose my changes)</button> <button class="btn" onclick="resolve('${esc(k)}','mine')">Overwrite with mine</button></div>`).join("");setStatus("conflict to resolve",true)}
 function resolve(k,how){const c=conflicts[k];delete conflicts[k];REM[k]={v:c.v,json:c.json};if(how==="theirs")applyDoc(k,JSON.parse(c.json));showConflicts();softRender();if(how==="mine")flush()}
+async function saveNow(){if(!API)return{ok:true,local:true};clearTimeout(timer);let n=0;while(busy&&n++<60)await new Promise(r=>setTimeout(r,200));await flush();const st=(document.getElementById("stat")||{}).textContent||"";return{ok:!Object.keys(conflicts).length&&!/ERROR|conflict/i.test(st)&&!STALE,conf:Object.keys(conflicts),st}}
+const svTxt=sv=>sv.local?" Saved only on this computer (no server connected).":sv.ok?" ✓ Saved in the shared database at "+new Date().toLocaleTimeString("en-GB")+": visible to everybody (people who already have the page open must reload it once).":" ⚠ NOT saved in the shared database ("+(sv.conf&&sv.conf.length?"conflict on "+sv.conf.join(", "):sv.st)+"). Do not close the page: see the status badge at the top right.";
+function showStale(){if(document.getElementById("stale"))return;const d=document.createElement("div");d.id="stale";d.style.cssText="position:fixed;top:0;left:0;right:0;z-index:9999;background:#b91c1c;color:#fff;padding:12px 16px;font-weight:700;text-align:center;font-size:14px";d.textContent="A newer version of the console has been published. Saving is paused to protect the shared data: reload this page now (Cmd+Shift+R on Mac, Ctrl+Shift+R on Windows).";document.body.appendChild(d);setStatus("reload needed: old version",true)}
+async function versionCheck(){if(STALE||!API)return;try{const u=location.href.split("#")[0].split("?")[0]+"?v="+Date.now(),t=await (await fetch(u,{cache:"no-store"})).text(),m=t.match(/const BUILD=(\d+)/);if(m&&+m[1]>BUILD){STALE=true;showStale()}}catch(e){}}
+document.addEventListener("visibilitychange",()=>{if(!document.hidden)versionCheck()});
 function softRender(){if(/INPUT|SELECT|TEXTAREA/.test(document.activeElement.tagName)){pendingRender=true;return}pendingRender=false;const y=window.scrollY;render(true);window.scrollTo(0,y)}
 document.addEventListener("focusout",()=>{if(pendingRender)setTimeout(softRender,200)});
 async function poll(){if(!TOKEN||!loaded||busy)return;
@@ -1128,7 +1143,7 @@ function logout(silent){TOKEN="";ME=null;loaded=false;clearInterval(pollT);try{s
 function showLogin(msg){document.getElementById("app").classList.add("hid");const l=document.getElementById("login");l.classList.remove("hid");document.getElementById("l_e").textContent=msg||"";document.getElementById("l_p").value=""}
 async function start(){document.getElementById("login").classList.add("hid");document.getElementById("app").classList.remove("hid");
  document.getElementById("who").textContent=ME?ME.nome+" · "+ME.ruolo:"local mode";document.getElementById("exitb").classList.toggle("hid",!API);
- try{await loadAll()}catch(e){setStatus("ERROR: "+e.message,true)}render();clearInterval(pollT);pollT=setInterval(poll,15000)}
+ try{await loadAll()}catch(e){setStatus("ERROR: "+e.message,true)}render();clearInterval(pollT);pollT=setInterval(poll,15000);clearInterval(verT);verT=setInterval(versionCheck,300000);versionCheck()}
 document.addEventListener("keydown",e=>{if(e.key==="Enter"&&document.activeElement.id==="l_p")doLogin()});
 if(!API){try{const x=JSON.parse(localStorage.getItem("adlerLocal")||"null");if(x&&x.plants)S=x}catch(e){}ME={nome:"Local",ruolo:"admin"};loaded=true;start().then(()=>setStatus("local mode (no server connected)",true))}
 else if(TOKEN&&ME)start();else showLogin();
