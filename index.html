@@ -735,7 +735,7 @@ async function bcyIngest(f,withParams){
   S.bcy=Object.assign({},S.bcy?{vOv:S.bcy.vOv,sOv:S.bcy.sOv,refVeh:S.bcy.refVeh,refSales:S.bcy.refSales,volMode:S.bcy.volMode,extend:S.bcy.extend,ed:S.bcy.ed}:{},{file:f.name,years:o.years,ref:refY,plants:o.plants});save();
   BCYMSG="✓ “"+f.name+"”: years "+o.years[0]+"-"+o.years[o.years.length-1]+" loaded for Tangier and Zaragoza (net sales, fixed and indirect costs, D&A, subsidies, HQ fee, financing, tax). Volumes are calculated from net sales with the reference driver.";
   const ne=bcyEdCount();if(ne)BCYMSG+=" "+ne+" manual value"+(ne>1?"s were":" was")+" kept (yellow cells in Basic inputs).";
-  if(withParams){try{const par=bcpParse(wb),rows=bcpDiff(par);BCP=rows.length?{file:f.name,rows}:null;BCPMSG=rows.length?"":"✓ The unit values of this page already match the Business Case."}catch(e){BCP=null;BCPMSG="⚠ Unit values not read: "+(e&&e.message?e.message:e)}}
+  if(withParams){try{const par=bcpParse(wb),rows=bcpDiff(par);BCP=rows.length?{file:f.name,rows,un:rows.unmatched||[]}:null;BCPMSG=rows.length?"":"✓ The unit values of this page already match the Business Case."}catch(e){BCP=null;BCPMSG="⚠ Unit values not read: "+(e&&e.message?e.message:e)}}
   render();const sv=await saveNow();BCYMSG+=svTxt(sv);render(true)}
  catch(e){BCYMSG="⚠ Could not process “"+f.name+"”: "+(e&&e.message?e.message:e);render(true);alert(BCYMSG)}}
 async function bcyLoadFile(el){const f=el.files&&el.files[0];if(!f)return;if(readonly()){alert("Read-only account");return}BCYMSG="Reading “"+f.name+"”…";render(true);await bcyIngest(f,false)}
@@ -791,7 +791,20 @@ function bcpParse(wb){const out={},plan=[["TNG","","Tangier"],["ZGZ","ES_","Zara
   if(ep&&isFinite(parseFloat(ep[2])))o.energy=parseFloat(ep[2]);
   else{const cost=first(vc,/^annual electricity cost \(€\/year\)/i),kr=vc.find(r=>r&&/^annual energy consumption$/i.test(String(r[1]||"").trim())&&String(r[3]||"").toLowerCase()==="kwh/year"),kwh=kr?parseFloat(kr[2]):NaN;if(isFinite(cost)&&kwh>0)o.energy=cost/kwh}
   o.gross=isFinite(o.avg)&&isFinite(o.social)?o.avg/(1+o.social):NaN;out[pl]=o}
+ out.parts=bcpParts(wb);return out}
+function bcpParts(wb){const g=xlGrid(wb,"MATERIAL");if(!g)return[];const nn=v=>{const x=typeof v==="number"?v:parseFloat(String(v).replace(/,/g,""));return isFinite(x)?x:NaN};
+ const h=g.findIndex(r=>r&&r.some(c=>/^part description$/i.test(String(c||"").trim())));if(h<0)return[];const H=g[h].map(c=>String(c||"").trim().toLowerCase()),ci=re=>H.findIndex(c=>re.test(c));
+ const cd=ci(/^part description/),cn=ci(/^part number/),cv=ci(/^annual volume/),cs=ci(/^sp \(/),ct=ci(/^take rate/),out=[];
+ for(let i=h+1;i<g.length;i++){const r=g[i];if(!r)continue;const d=r[cd];if(typeof d!=="string"||!d.trim())continue;if(/^total/i.test(d.trim()))break;out.push({desc:d.trim(),code:String(r[cn]||"").trim(),vol:nn(r[cv]),sp:cs>=0?nn(r[cs]):NaN,take:ct>=0?nn(r[ct]):NaN})}
  return out}
+const bcpNorm=x=>String(x||"").toUpperCase().replace(/[^A-Z0-9]/g,"");
+function bcpMatch(pt){const P=S.products;let m=P.find(p=>pt.code&&bcpNorm(p.code)===bcpNorm(pt.code)&&bcpNorm(pt.code).length>5);if(m)return m;
+ const d=pt.desc.toLowerCase(),side=/\brh\b/.test(d)?"rh":/\blh\b/.test(d)?"lh":"",pw=/fhev/.test(d)?"fhev":/ice/.test(d)?"ice":"";
+ const key=p=>(p.desc||"").toLowerCase();
+ if(/bracket/.test(d))return P.find(p=>/bracket/.test(key(p)))||null;
+ if(/tank\s*shield|shield fuel/.test(d))return P.find(p=>/shield/.test(key(p)))||null;
+ if(/floor panel|underbody/.test(d))return P.find(p=>/underbody|floor panel/.test(key(p))&&new RegExp("\\b"+side+"\\b").test(key(p))&&key(p).includes(pw))||null;
+ return P.find(p=>key(p)===d)||null}
 function bcpDiff(par){const rows=[],add=(pl,key,label,old,nw,f)=>{if(!isFinite(nw))return;if(Math.abs(old-nw)<=Math.max(1e-9,Math.abs(nw)*1e-3))return;rows.push({pl,key,label,old,nw,f})};
  for(const pl of ["TNG","ZGZ"]){const P=S.plants[pl].params,o=par[pl];if(!o)continue;
   add(pl,"grossYear","Annual employer cost before social charges (€ / operator)",num(P.grossYear),o.gross,x=>fm(x,0));
@@ -800,9 +813,14 @@ function bcpDiff(par){const rows=[],add=(pl,key,label,old,nw,f)=>{if(!isFinite(n
   add(pl,"days","Machine production days / year",num(P.days),o.days,x=>fm(x,0));add(pl,"opDays","Operator working days / year",num(P.opDays),o.days,x=>fm(x,0));
   add(pl,"paidHours","Paid hours per operator / year",num(P.paidHours),o.paid,x=>fm(x,0));
   add(pl,"energyPrice","Electricity cost (€/kWh)",num(P.energyPrice),o.energy,x=>fm(x,5))}
- return rows}
+ const parts=par.parts||[],un=[],seen=new Set();
+ for(const pt of parts){const p=bcpMatch(pt);if(!p){un.push(pt.desc);continue}if(seen.has(p.id)){un.push(pt.desc+" (duplicate of "+p.desc+")");continue}seen.add(p.id);
+  for(const pl of ["TNG","ZGZ"]){const v=p.v[pl];if(!v)continue;
+   const pr=(k,lab,old,nw,f)=>{if(!isFinite(nw)||nw<=0)return;if(Math.abs(old-nw)<=Math.max(1e-9,Math.abs(nw)*1e-4))return;rows.push({pl,pid:p.id,key:k,label:p.desc+" — "+lab,old,nw,f})};
+   pr("volume","volume (pcs / year)",num(v.volume),pt.vol,x=>fm(x,0));pr("price","selling price (€ / pc)",num(v.price),pt.sp,x=>x?fm(x,3):"— none —")}}
+ rows.unmatched=un;return rows}
 function bcpApply(){if(!BCP)return;if(readonly()){alert("Read-only account");return}
- for(const r of BCP.rows){const P=S.plants[r.pl];if(r.key==="flag")P.flags.cassa=true;else P.params[r.key]=r.nw}
+ for(const r of BCP.rows){if(r.pid){const p=S.products.find(q=>q.id===r.pid);if(p&&p.v[r.pl])p.v[r.pl][r.key]=r.nw;continue}const P=S.plants[r.pl];if(r.key==="flag")P.flags.cassa=true;else P.params[r.key]=r.nw}
  const n=BCP.rows.length;BCP=null;CAL={};save();BCPMSG="✓ "+n+" unit values updated from the Business Case.";render();saveNow().then(sv=>{BCPMSG="✓ "+n+" unit values updated from the Business Case."+svTxt(sv);render(true)})}
 function bcpCancel(){BCP=null;BCPMSG="";render(true)}
 /* editable yearly values (override the file; the file values stay visible as placeholders) */
@@ -825,9 +843,9 @@ function bcyEditor(){const B=S.bcy,ys=bcyYears(),last=B.years[B.years.length-1],
  <p class="sub">These values come from the Business Case file and are updated every time you load it. Each cell shows the file value in grey; <b>type a number to override it</b> (the cell turns yellow) and clear the cell to go back to the file value. Percentages are typed as % (e.g. 3 = 3 %). Values used by the P&amp;L “Business Case format”. Volumes and net sales per year are in the “Volume drivers” table below. * = year after the Business Case horizon (costs repeated from ${last}).</p>${block("TNG")}${block("ZGZ")}</div>`}
 function bcUpdateCard(){const B=S.bcy,ms=m=>m?`<p class="sub" style="margin:8px 0 0;font-weight:700;color:${m.startsWith("⚠")?"#b91c1c":"#15803d"}">${esc(m)}</p>`:"";
  let prev="";if(BCP){prev=`<div style="margin-top:10px"><b>Unit values that differ from the Business Case (${BCP.rows.length})</b> — “${esc(BCP.file)}”
-  <table class="tw" style="margin-top:6px"><tr><th>Plant</th><th>Parameter</th><th class="n">Console now</th><th class="n">Business Case</th></tr>${BCP.rows.map(r=>`<tr><td class="${r.pl==="TNG"?"t":"z"}">${PN[r.pl]}</td><td>${r.label}</td><td class="n">${r.f(r.old)}</td><td class="n"><b>${r.f(r.nw)}</b></td></tr>`).join("")}</table>
-  <div class="row" style="margin-top:8px"><button class="btn" onclick="bcpApply()">Apply these ${BCP.rows.length} values</button><button class="btn sec" onclick="bcpCancel()">Cancel</button></div><p class="sub" style="margin:6px 0 0">Nothing is changed until you press “Apply”. Zaragoza: if the social charges become 0 % the cost per hour falls (the Business Case now gives the total employer cost).</p></div>`}
- return `<div class="card" style="border:2px solid var(--acc)"><h2>Update from the Business Case</h2><p class="sub">Select the Business Case Excel (“BC CX735 Spain vs Morocco comparison”). The file is read in your browser and updates, for Tangier and Zaragoza: <b>(1) the unit values of this page</b> (employer cost per operator and social charges, inefficiency %, working days, paid hours, electricity price): you see the differences and confirm; <b>(2) the yearly data</b> below (net sales, fixed cost, indirect/admin cost, D&amp;A, subsidies, HQ fee, financing, tax): loaded at once. ${B?`Loaded: <b>${esc(B.file||"")}</b>, years ${B.years[0]}-${B.years[B.years.length-1]}.`:"<b>Nothing loaded yet.</b>"} The sheets EXEC_SUMMARY are not used.</p>
+  <table class="tw" style="margin-top:6px"><tr><th>Plant</th><th>Parameter</th><th class="n">Console now</th><th class="n">Business Case</th></tr>${BCP.rows.map(r=>`<tr><td class="${r.pl==="TNG"?"t":"z"}">${PN[r.pl]}</td><td>${esc(r.label)}</td><td class="n">${r.f(r.old)}</td><td class="n"><b>${r.f(r.nw)}</b></td></tr>`).join("")}</table>
+  ${BCP.un&&BCP.un.length?`<p class="sub" style="color:#b45309;margin:6px 0 0">⚠ Parts of the Business Case not matched to a console product (not loaded): ${esc(BCP.un.join(", "))}.</p>`:""}<div class="row" style="margin-top:8px"><button class="btn" onclick="bcpApply()">Apply these ${BCP.rows.length} values</button><button class="btn sec" onclick="bcpCancel()">Cancel</button></div><p class="sub" style="margin:6px 0 0">Nothing is changed until you press “Apply”. Zaragoza: if the social charges become 0 % the cost per hour falls (the Business Case now gives the total employer cost).</p></div>`}
+ return `<div class="card" style="border:2px solid var(--acc)"><h2>Update from the Business Case</h2><p class="sub">Select the Business Case Excel (“BC CX735 Spain vs Morocco comparison”). The file is read in your browser and updates, for Tangier and Zaragoza: <b>(1) the unit values of this page</b> (employer cost per operator and social charges, inefficiency %, working days, paid hours, electricity price) <b>and, for each product, the volume and the selling price</b> of the Business Case MATERIAL sheet (same price for Tangier and Zaragoza): you see the differences and confirm; <b>(2) the yearly data</b> below (net sales, fixed cost, indirect/admin cost, D&amp;A, subsidies, HQ fee, financing, tax): loaded at once. ${B?`Loaded: <b>${esc(B.file||"")}</b>, years ${B.years[0]}-${B.years[B.years.length-1]}.`:"<b>Nothing loaded yet.</b>"} The sheets EXEC_SUMMARY are not used.</p>
  <div class="row"><input type="file" accept=".xlsx,.xlsm" onchange="bcAllLoad(this)" style="width:auto"></div>${ms(BCYMSG)}${ms(BCPMSG)}${prev}</div>`}
 
 function bcyModel(pl){const B=S.bcy,src=pl==="TNG"?"TNG":"ZGZ",P=B.plants[src],ys=bcyYears(),last=B.years[B.years.length-1],all=bcyBasis==="bc"?true:plAll,D=plData(pl,"ALL",all),vref=bcyRef(P);
@@ -864,7 +882,7 @@ function pageBCYears(){const has=!!S.bcy;
  if(!has)return loader+`<p class="sub">Until the data are loaded, use “Steady state” above.</p>`;
  return loader+bcyDrivers()+`<div style="background:#ffff66;text-align:center;font-weight:800;font-size:19px;padding:8px;border-radius:8px;margin:6px 0 14px">P&amp;L with assumptions · year by year · EUR</div>
  ${PL.map(bcyBlock).join("")}
- <p class="sub"><b>How each year is built.</b> <b>Volumes:</b> every product volume of the console (the regime level, ${fm(bcyRef(S.bcy.plants.TNG),0)} vehicles) is scaled by net sales ÷ reference net sales (= vehicles ÷ reference vehicles), as set in the Volume drivers table above. <b>Material cost, Direct Personnel and Variable cost</b> (energy + maintenance + plant scrap + logistics) are the console cost per piece × the scaled volume; labour and maintenance are treated as proportional to volume (the Business Case has a fixed headcount during the ramp-up, so the early years differ). <b>Fixed cost, Indirect/Admin, subsidies, financing and D&amp;A</b> are the Business Case figures of the year; the <b>HQ fee</b> is the Business Case % × net sales; <b>tax</b> = Business Case rate on positive EBT. <b>Net sales</b> follow the selected basis. <b>Automated scenario:</b> Zaragoza Business Case figures plus the differences generated in the console (machine depreciation, overhead pool edits) from the first year with production. The rows at the bottom of each block are the Business Case results, to compare.</p>
+ <p class="sub"><b>How each year is built.</b> <b>Volumes:</b> every product volume of the console (the regime level, ${fm(bcyRef(S.bcy.plants.TNG),0)} vehicles) is scaled by net sales ÷ reference net sales (= vehicles ÷ reference vehicles), as set in the Volume drivers table above. <b>Material cost, Direct Personnel and Variable cost</b> (energy + maintenance + plant scrap + logistics) are the console cost per piece × the scaled volume; labour and maintenance are treated as proportional to volume (in the latest Business Case the direct headcount also follows the yearly volumes). <b>Fixed cost, Indirect/Admin, subsidies, financing and D&amp;A</b> are the Business Case figures of the year; the <b>HQ fee</b> is the Business Case % × net sales; <b>tax</b> = Business Case rate on positive EBT. <b>Net sales</b> follow the selected basis. <b>Automated scenario:</b> Zaragoza Business Case figures plus the differences generated in the console (machine depreciation, overhead pool edits) from the first year with production. The rows at the bottom of each block are the Business Case results, to compare.</p>
  <div class="row"><button class="btn sec" data-ok="1" onclick="bcCSV()">⬇ Export (CSV)</button><button class="btn sec" data-ok="1" onclick="bcPDF()">⬇ PDF (one page per plant)</button></div>`}
 function bcCSVy(){const rows=[["Plant","Line"].concat(bcyYears(),["Total"])];
  for(const pl of PL){const M=bcyModel(pl),cols=M.cols;for(const [k,l] of BC_ROWS){const v=cols.map(c=>bcyV(c,k));rows.push([PN[pl],l].concat(v.map(x=>Math.round(x)),[Math.round(v.reduce((a,b)=>a+b,0))]));}
@@ -1356,7 +1374,7 @@ async function reportPDF(full,onlyId){
 
 /* ======================= ACCESSO, DATI CONDIVISI, SALVATAGGIO ======================= */
 const API=window.ADLER_API||"";
-const BUILD=20261118;let STALE=false,verT=null;
+const BUILD=20261119;let STALE=false,verT=null;
 let TOKEN="",ME=null,REM={},conflicts={},timer=null,busy=false,loaded=false,pendingRender=false,pollT=null;
 try{TOKEN=sessionStorage.getItem("adl_t")||"";ME=JSON.parse(sessionStorage.getItem("adl_u")||"null")}catch(e){}
 const readonly=()=>ME&&ME.ruolo==="viewer";
