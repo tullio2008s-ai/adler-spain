@@ -111,23 +111,23 @@ table.mcT{min-width:1700px}table.mcT input,table.mcT select{min-width:0;padding:
 const PL=["TNG","ZGZ"],PN={TNG:"Tangier",ZGZ:"Zaragoza",TNA:"Zaragoza FX350 automated"},PCLS={TNG:"t",ZGZ:"z",TNA:"a"},PVAR={TNG:"tng",ZGZ:"zgz",TNA:"tna"},PTAB={TNG:"T",ZGZ:"Z",TNA:"A"};
 const MATP0=()=>({scrap:.02,scrapOn:true,moh:.02,mohOn:true,eurMad:10.88,gbpPerEur:.87,scrapOnConv:true});
 const FLAGS=()=>({dep:false,maint:false,energy:false,cassa:false,indirect:false,burdenManual:false});
-const P0=()=>({days:248,opDays:248,shifts:3,hoursShift:8,paidHours:1744,pause:0,grossYear:0,social:0,energyPrice:0,energyUse:.75,maintPct:.577,burden:0,cassa:0,oee:.85,scrap:.03,ga:.08,profit:.08,produttivita:0,imposte:0,depExcl:false,burdenMode:"manual",maintMode:"manual"});
+const P0=()=>({days:248,opDays:248,shifts:3,hoursShift:8,paidHours:1744,pause:0,grossYear:0,social:0,energyPrice:0,energyUse:.75,maintPct:.577,burden:0,cassa:0,oee:.85,scrap:.03,ga:.08,profit:.08,produttivita:0,imposte:0,welfare:0,depExcl:false,burdenMode:"manual",maintMode:"manual"});
 function build(){return{name:"ADLER product cost",plants:{TNG:{name:"Tangier",params:P0(),flags:FLAGS(),machines:[],dlBase:0,items:[]},ZGZ:{name:"Zaragoza",params:P0(),flags:FLAGS(),machines:[],dlBase:0,items:[]}},materials:[],products:[],notes:{},guide:{excel:[],points:[]},check:null,alignZ:false,alignBasis:"pool",recovery:false,matp:MATP0()}}
 /* fonti per parametro: [chiave, etichetta, UM, fonte Tangeri, fonte Zaragoza, nota] */
 const SRC={BC:["Business case","b-bc"],AD:["Adler file","b-ad"],ES:["Estimate · to validate","b-es"],DE:["Calculated","b-de"]};
 const NOTE=k=>(S.notes&&S.notes[k])||["ES","ES",""];
 const PDEF=[
 ["Calendar and machine availability",[["days","Machine production days / year","days"],["shifts","Shifts / day","no."],["hoursShift","Hours / shift","h"],["_avail","Available machine hours / year","h","= days × shifts × hours"]]],
-["Labour cost",[["grossYear","Gross annual salary, direct operator","€"],["social","Employer social charges","%"],["opDays","Operator working days / year","days"],["paidHours","Paid hours per operator / year","h"],["pause","Non-productive breaks / day","h"],["_net","Net presence hours / month","h","= (paid hours ÷ days − breaks) × days ÷ 12"],["_mod","Direct labour hourly cost (DL)","€/h","= gross × (1 + charges) ÷ (net hours × 12)"],["cassa","Labour inefficiency surcharge","%"]]],
+["Labour cost",[["grossYear","Gross annual salary, direct operator","€"],["social","Employer social charges","%"],["opDays","Operator working days / year","days"],["paidHours","Paid hours per operator / year","h"],["pause","Non-productive breaks / day","h"],["_net","Net presence hours / month","h","= (paid hours ÷ days − breaks) × days ÷ 12"],["_mod","Direct labour hourly cost (DL)","€/h","= gross × (1 + charges) ÷ (net hours × 12)"],["cassa","Labour inefficiency surcharge","%"],["welfare","Welfare added to direct labour (canteen, transport, bonus)","%","BC: variable cost proportional to direct labour, charged on top of it"]]],
 ["Energy and maintenance",[["energyPrice","Electricity cost","€/kWh"],["energyUse","Energy utilisation factor","%"],["maintPct","Maintenance – manual value (% of hourly depreciation)","%"],["_maintEff","Maintenance % IN USE","%","= manual value, or computed from the burden split"]]],
 ["Indirect costs and mark-up",[["burden","Burden rate – manual value (indirect ÷ DL)","%"],["_burdenEff","Burden rate IN USE","%","= manual value, or computed from the burden split (page “Burden & rates”)"],["oee","Default efficiency / OEE","%"],["scrap","Scrap on subtotal (materials + conversion)","%"],["profit","Profit","%"],["ga","G&A","%"],["produttivita","Productivity","%"],["imposte","Taxes","%"]]]];
-const PCT=new Set(["social","energyUse","maintPct","burden","cassa","oee","scrap","profit","ga","produttivita","imposte"]);
+const PCT=new Set(["welfare","social","energyUse","maintPct","burden","cassa","oee","scrap","profit","ga","produttivita","imposte"]);
 const FDEF=[["dep","Depreciation ÷ UR","Adler: no"],["maint","Maintenance ÷ UR","Adler: no"],["energy","Energy ÷ UR","Adler: no"],["cassa","Apply inefficiency surcharge to DL","Adler: yes"],["indirect","Indirect (burden) ÷ UR","Adler: yes – penalises under-loaded machines; enable only with the complete product portfolio loaded"],["burdenManual","Apply burden also to manual (DL-only) operations","Adler: no (manual steps use direct labour cost only)"]];
 
 /* ======================= MOTORE ======================= */
 let S=build();
 /* Third scenario (TNA): own machines, processes, operators; wages/energy, prices and volumes are LINKED to Zaragoza (read-only aliases, never stored) */
-const TNA_LINK=["grossYear","social","opDays","paidHours","pause","cassa","energyPrice","energyUse"];
+const TNA_LINK=["welfare","grossYear","social","opDays","paidHours","pause","cassa","energyPrice","energyUse"];
 function linkProps(o,keys,src){for(const k of keys){const d=Object.getOwnPropertyDescriptor(o,k);if(d&&d.get)continue;Object.defineProperty(o,k,{configurable:true,enumerable:false,get:()=>src()[k],set:()=>{}})}}
 const tnaOn=()=>!!(S.plants&&S.plants.TNA&&S.plants.TNA.active);
 function fixS(){if(!S.matp)S.matp=MATP0();const want=tnaOn()?["TNG","ZGZ","TNA"]:["TNG","ZGZ"];if(PL.join()!==want.join()){PL.length=0;PL.push(...want)}
@@ -150,6 +150,7 @@ const num=v=>{const x=parseFloat(v);return isFinite(x)?x:0};
 const fm=(v,d=2)=>isFinite(v)?v.toLocaleString("en-GB",{minimumFractionDigits:d,maximumFractionDigits:d}):"—";
 const fp=v=>isFinite(v)?(v*100).toLocaleString("en-GB",{minimumFractionDigits:1,maximumFractionDigits:1})+" %":"—";
 const sg=v=>isFinite(v)?(v>0?"+":"")+fm(v,3):"—";
+const wfs=P=>1+(+P.welfare||0);
 function derived(P){const avail=num(P.days)*num(P.shifts)*num(P.hoursShift);
  const net=((num(P.paidHours)/(num(P.opDays)||1))-num(P.pause))*num(P.opDays)/12;
  return{avail,net,mod:num(P.grossYear)*(1+num(P.social))/((net*12)||1)}}
@@ -165,7 +166,7 @@ let CAL={};
 function calib(pl,st=S){if(st===S&&CAL[pl])return CAL[pl];const r=calibCompute(pl,st);if(st===S)CAL[pl]=r;return r}
 function calibCompute(pl,st){const B=burdenCalc(pl,st),prev=st._cal;let sDL=0,sDep=0,sIC=0;st._cal=Object.assign({},prev||{});
  try{st._cal[pl]={burden:0,maint:0,B};
-  for(const p of st.products){const v=p.v[pl];if(!v)continue;const c=pcalc(p,pl,st),vol=num(v.volume);sDL+=vol*c.opRows.reduce((a,r)=>a+(r.carry?r.nR:0),0);sDep+=vol*c.cG}
+  for(const p of st.products){const v=p.v[pl];if(!v)continue;const c=pcalc(p,pl,st),vol=num(v.volume);sDL+=vol*c.opRows.reduce((a,r)=>a+(r.carry?r.nR0:0),0);sDep+=vol*c.cG}
   const bu=sDL>0?B.t.BURDEN/sDL:0,mt=sDep>0?B.t.MAINT/sDep:0;st._cal[pl]={burden:bu,maint:mt,B};
   for(const p of st.products){const v=p.v[pl];if(!v)continue;sIC+=num(v.volume)*pcalc(p,pl,st).ic}
   return{ok:sDL>0&&sDep>0,burden:bu,maint:mt,gaRate:sIC>0?B.t.GA/sIC:0,sDL,sDep,sIC,B}}
@@ -179,16 +180,16 @@ function mrate(m,pl,st=S){const P=st.plants[pl].params,F=st.plants[pl].flags,D=d
  const G0=num(m.price)*(1-num(m.resid))/(num(m.life)||1);
  const depOn=F.dep||!!st.recovery;r.G=depOn?G0/d:G0;r.I=E.maint*((F.maint&&!depOn)?G0/d:r.G);
  const M0=num(m.kw)*num(P.energyUse)*num(P.energyPrice);r.M=F.energy?M0/d:M0;
- r.R=num(m.workers)*D.mod*(F.cassa?1+num(P.cassa):1);r.T=r.R*E.burden/((F.indirect&&!st.recovery)?d:1);
+ r.R0=num(m.workers)*D.mod*(F.cassa?1+num(P.cassa):1);r.R=r.R0*wfs(P);r.T=r.R0*E.burden/((F.indirect&&!st.recovery)?d:1);
  r.V=r.G+r.I+r.M+r.R+r.T;r.X=r.V-(P.depExcl?r.G:0);r.Y=r.X/60;return r}
 function opCalc(o,pl,st=S){const P=st.plants[pl].params,F=st.plants[pl].flags,D=derived(P),E=effP(pl,st);
  const m=o.machineId==="MOD"?null:st.plants[pl].machines.find(x=>x.id===o.machineId),mr=m?mrate(m,pl,st):null;
- const hasCrew=o.crew!==undefined&&o.crew!==null&&o.crew!=="";let G=0,I=0,M=0,R=0,T=0;
- if(mr){G=P.depExcl?0:mr.G;I=mr.I;M=mr.M;if(hasCrew){R=num(o.crew)*D.mod*(F.cassa?1+num(P.cassa):1);T=R*E.burden/((F.indirect&&!st.recovery)?(mr.gu>0?mr.gu:1):1)}else{R=mr.R;T=mr.T}}
- else{R=hasCrew?num(o.crew)*D.mod*(F.cassa?1+num(P.cassa):1):D.mod;T=F.burdenManual?R*E.burden:0}
+ const hasCrew=o.crew!==undefined&&o.crew!==null&&o.crew!=="";let G=0,I=0,M=0,R=0,T=0,R0=0;
+ if(mr){G=P.depExcl?0:mr.G;I=mr.I;M=mr.M;if(hasCrew){R0=num(o.crew)*D.mod*(F.cassa?1+num(P.cassa):1);R=R0*wfs(P);T=R0*E.burden/((F.indirect&&!st.recovery)?(mr.gu>0?mr.gu:1):1)}else{R=mr.R;T=mr.T;R0=mr.R0}}
+ else{R0=hasCrew?num(o.crew)*D.mod*(F.cassa?1+num(P.cassa):1):D.mod;R=R0*wfs(P);T=F.burdenManual?R0*E.burden:0}
  const L=num(o.cycle)/(num(o.eff)||1)/(num(o.cav)||1),rate=G+I+M+R+T,f=L/3600;
  const heads=hasCrew?num(o.crew):(m?num(m.workers):num(o.cav));
- return{L,rate,N:f*rate,G,I,M,R,T,nG:f*G,nI:f*I,nM:f*M,nR:f*R,nT:f*T,heads,hasCrew,mname:m?m.name:"Manual DL",gu:mr?mr.gu:0,carry:!!m||!!F.burdenManual}}
+ return{L,rate,N:f*rate,G,I,M,R,T,nG:f*G,nI:f*I,nM:f*M,nR:f*R,nR0:f*R0,nT:f*T,heads,hasCrew,mname:m?m.name:"Manual DL",gu:mr?mr.gu:0,carry:!!m||!!F.burdenManual}}
 function pcalc(p,pl,st=S){const P=st.plants[pl].params,D=derived(P),v=p.v[pl],c={bomRows:[],opRows:[],mat:0,conv:0};
  const mcx=mcOn(p);if(mcx){const m=mcCalc(p.mc,st);c.mcRows=m.rows;c.mat=m.total;c.matNet=m.mat;c.matScrap=m.scrap;c.matMoh=m.moh}else for(const b of p.bom){const m=st.materials.find(x=>x.id===b.matId);const r=m?num(m.cost[pl==='TNA'?'ZGZ':pl])*num(b.qty):0;c.bomRows.push(r);c.mat+=r}
  c.cG=c.cI=c.cM=c.cR=c.cT=0;c.heads=0;c.dlMin=0;
@@ -287,12 +288,12 @@ function pageChk(){const L=allChecks(),o=L.filter(x=>x.l==="o").length,y=L.lengt
  return `<div class="kpi"><div class="${o?"wo":""}"><span>Probable anomalies (orange)</span><b>${o}</b></div><div class="${y?"wy":""}"><span>To verify (yellow)</span><b>${y}</b></div></div>
  <div class="card"><h2>Data checks</h2><p class="sub">Automatic checks on the current data. <b>Orange</b> = probable anomaly, <b>yellow</b> = to be verified. The same warnings appear next to the cells concerned (hover the ⚠ for the explanation).</p>
  <table><tr><th></th><th>Plant</th><th>Where</th><th>Message</th><th></th></tr>${L.map((x,i)=>`<tr class="${x.l==="o"?"wo":"wy"}"><td>⚠</td><td>${x.pl?PN[x.pl]:"All"}</td><td>${esc(x.area)}</td><td style="white-space:normal;min-width:320px">${esc(x.msg)}</td><td><button class="btn sec" data-ok="1" onclick="gotoChk(${i})">Open</button></td></tr>`).join("")||'<tr><td colspan="5">No warnings.</td></tr>'}</table></div>`}
-const PAGES=[["dash","▦","Overview"],["pl","💶","P&L comparison"],["ex","📊","Executive summary"],["inp","⚙","Basic inputs"],["bur","⚖","Burden & rates"],["mr","🏭","Machines & processes"],["mat","▤","Materials"],["prd","📦","Products"],["brg","🌉","Why Zaragoza costs more"],["chk","⚠","Data checks"],["gui","✔","Guide & checks"]];
+const PAGES=[["dash","▦","Overview"],["pl","💶","P&L comparison"],["ex","📊","Executive summary"],["rec","🧮","Console vs Business Case"],["inp","⚙","Basic inputs"],["bur","⚖","Burden & rates"],["mr","🏭","Machines & processes"],["mat","▤","Materials"],["prd","📦","Products"],["brg","🌉","Why Zaragoza costs more"],["chk","⚠","Data checks"],["gui","✔","Guide & checks"]];
 function render(keep){CAL={};fixS();document.getElementById('bTNA').classList.toggle('hid',!tnaOn());
  const CK=allChecks(),nO=CK.filter(x=>x.l==="o").length,nY=CK.length-nO;document.getElementById("nav").innerHTML=PAGES.map(([k,i,t])=>`<button class="nv ${(page===k||(page==="pd"&&k==="prd"))?"on":""}" onclick="go('${k}')"><span>${i}</span>${t}${k==="chk"&&CK.length?`<span class="navb ${nO?"":"y"}" title="${nO} anomalies, ${nY} to verify">${nO?nO+"⚠":nY}</span>`:""}</button>`).join("");
- const T={dash:"Overview · Tangier vs Zaragoza"+(tnaOn()?" vs "+PN.TNA:""),inp:"Basic inputs",bur:"Burden split & hourly rates",mr:"Machines & processes · machine rate",mat:"Material cost",prd:"Products",pd:"Product sheet",gui:"Guide & checks",chk:"Data checks",pl:"P&L comparison",ex:"Executive summary · Zaragoza vs Tangier",brg:"Bridge · why the costs differ"};
+ const T={rec:"Console vs Business Case · reconciliation",dash:"Overview · Tangier vs Zaragoza"+(tnaOn()?" vs "+PN.TNA:""),inp:"Basic inputs",bur:"Burden split & hourly rates",mr:"Machines & processes · machine rate",mat:"Material cost",prd:"Products",pd:"Product sheet",gui:"Guide & checks",chk:"Data checks",pl:"P&L comparison",ex:"Executive summary · Zaragoza vs Tangier",brg:"Bridge · why the costs differ"};
  document.getElementById("title").textContent=T[page];
- const pre=(page==="dash"||page==="brg"||page==="pl"||page==="ex")?alignSwitch()+recSwitch():(page==="bur"&&bpl==="CMP")?alignSwitch():alignBanner();document.getElementById("main").innerHTML=pre+{dash:pageDash,inp:pageInp,bur:pageBur,chk:pageChk,brg:pageBrg,pl:pagePL,ex:pageEX,mr:pageMR,mat:pageMat,prd:pagePrd,pd:pagePD,gui:pageGui}[page]();refresh();if(page==="ex")fitSlide();if(readonly())document.querySelectorAll("#main input,#main select,#main button.btn:not([data-ok])").forEach(e=>e.disabled=true);if(!keep)window.scrollTo(0,0)}
+ const pre=(page==="dash"||page==="brg"||page==="pl"||page==="ex"||page==="rec")?alignSwitch()+recSwitch():(page==="bur"&&bpl==="CMP")?alignSwitch():alignBanner();document.getElementById("main").innerHTML=pre+{dash:pageDash,inp:pageInp,bur:pageBur,chk:pageChk,brg:pageBrg,pl:pagePL,ex:pageEX,rec:pageRec,mr:pageMR,mat:pageMat,prd:pagePrd,pd:pagePD,gui:pageGui}[page]();refresh();if(page==="ex")fitSlide();if(readonly())document.querySelectorAll("#main input,#main select,#main button.btn:not([data-ok])").forEach(e=>e.disabled=true);if(!keep)window.scrollTo(0,0)}
 function go(k){page=k;render()}
 function openProd(id,t){selProd=id;if(t)tab=t;page="pd";render()}
 function resetData(){if(ME&&ME.ruolo!=="admin"){alert("Only the administrator can reset the data");return}if(!confirm("WARNING: this erases the SHARED data of all users. Continue?"))return;if(!confirm("Confirm again: this cannot be undone (only the history log remains)."))return;S=build();selProd=null;save();go("dash")}
@@ -810,6 +811,9 @@ function bcpParse(wb){const out={},plan=[["TNG","","Tangier"],["ZGZ","ES_","Zara
   if(ep&&isFinite(parseFloat(ep[2])))o.energy=parseFloat(ep[2]);
   else{const cost=first(vc,/^annual electricity cost \(€\/year\)/i),kr=vc.find(r=>r&&/^annual energy consumption$/i.test(String(r[1]||"").trim())&&String(r[3]||"").toLowerCase()==="kwh/year"),kwh=kr?parseFloat(kr[2]):NaN;if(isFinite(cost)&&kwh>0)o.energy=cost/kwh}
   o.gross=isFinite(o.avg)&&isFinite(o.social)?o.avg/(1+o.social):NaN;out[pl]=o}
+ for(const [pl,pre] of plan){const wf=xlGrid(wb,pre+"WORKFORCE");if(!wf)continue;const lastNum=r=>{let v=NaN;for(let k=2;k<9;k++){const x=typeof r[k]==="number"?r[k]:parseFloat(r[k]);if(isFinite(x))v=x}return v};
+  const pool=wf.find(r=>r&&typeof r[1]==="string"&&/^total personnel welfare pool/i.test(r[1].trim())),dp=wf.find(r=>r&&typeof r[1]==="string"&&/^direct personnel cost/i.test(r[1].trim()));
+  if(pool&&dp){const a=lastNum(pool),b=lastNum(dp);if(isFinite(a)&&b>0)out[pl].welfare=a/b}}
  out.parts=bcpParts(wb);return out}
 function bcpParts(wb){const g=xlGrid(wb,"MATERIAL");if(!g)return[];const nn=v=>{const x=typeof v==="number"?v:parseFloat(String(v).replace(/,/g,""));return isFinite(x)?x:NaN};
  const h=g.findIndex(r=>r&&r.some(c=>/^part description$/i.test(String(c||"").trim())));if(h<0)return[];const H=g[h].map(c=>String(c||"").trim().toLowerCase()),ci=re=>H.findIndex(c=>re.test(c));
@@ -828,6 +832,7 @@ function bcpDiff(par){const rows=[],add=(pl,key,label,old,nw,f)=>{if(!isFinite(n
  for(const pl of ["TNG","ZGZ"]){const P=S.plants[pl].params,o=par[pl];if(!o)continue;
   add(pl,"grossYear","Annual employer cost before social charges (€ / operator)",num(P.grossYear),o.gross,x=>fm(x,0));
   add(pl,"social","Employer social charges added on top (%)",num(P.social),o.social,fp);
+  if(isFinite(o.welfare))add(pl,"welfare","Welfare (canteen, transport, bonus) added to direct labour (% of labour cost); these cost lines leave the burden pool",num(P.welfare),o.welfare,fp);
   if(isFinite(o.ineff)){add(pl,"cassa","Labour inefficiency surcharge (%)",num(P.cassa),o.ineff,fp);if(!S.plants[pl].flags.cassa)rows.push({pl,key:"flag",label:"Apply the inefficiency surcharge to direct labour",old:0,nw:1,f:x=>x?"yes":"no"})}
   add(pl,"days","Machine production days / year",num(P.days),o.days,x=>fm(x,0));add(pl,"opDays","Operator working days / year",num(P.opDays),o.days,x=>fm(x,0));
   add(pl,"paidHours","Paid hours per operator / year",num(P.paidHours),o.paid,x=>fm(x,0));
@@ -839,7 +844,7 @@ function bcpDiff(par){const rows=[],add=(pl,key,label,old,nw,f)=>{if(!isFinite(n
    pr("volume","volume (pcs / year)",num(v.volume),pt.vol,x=>fm(x,0));pr("price","selling price (€ / pc)",num(v.price),pt.sp,x=>x?fm(x,3):"— none —")}}
  rows.unmatched=un;return rows}
 function bcpApply(){if(!BCP)return;if(readonly()){alert("Read-only account");return}
- for(const r of BCP.rows){if(r.pid){const p=S.products.find(q=>q.id===r.pid);if(p&&p.v[r.pl])p.v[r.pl][r.key]=r.nw;continue}const P=S.plants[r.pl];if(r.key==="flag")P.flags.cassa=true;else P.params[r.key]=r.nw}
+ for(const r of BCP.rows){if(r.key==="welfare"){const P=S.plants[r.pl];P.params.welfare=r.nw;for(const it of (P.items||[]))if(/canteen|transport for people|bonus for ramadan/i.test(it.name||"")&&/welfare|wellfare/i.test(it.group||"")&&it.cls==="BURDEN")it.cls="EXCL";continue}if(r.pid){const p=S.products.find(q=>q.id===r.pid);if(p&&p.v[r.pl])p.v[r.pl][r.key]=r.nw;continue}const P=S.plants[r.pl];if(r.key==="flag")P.flags.cassa=true;else P.params[r.key]=r.nw}
  const n=BCP.rows.length;BCP=null;CAL={};save();BCPMSG="✓ "+n+" unit values updated from the Business Case.";render();saveNow().then(sv=>{BCPMSG="✓ "+n+" unit values updated from the Business Case."+svTxt(sv);render(true)})}
 function bcpCancel(){BCP=null;BCPMSG="";render(true)}
 /* editable yearly values (override the file; the file values stay visible as placeholders) */
@@ -1031,6 +1036,24 @@ function exSlide(view){const m=exModel(),specs=view==="ch"?[]:exSpecs(m,view),ms
  <div class="exf"><span>${exBasis()}</span><span>ADLER Pelzer Group · confidential · ${new Date().toLocaleDateString("en-GB")}</span></div></div></div>`}
 function fitSlide(){const w=document.getElementById("exw"),s=document.getElementById("exs");if(!w||!s)return;const k=Math.min(1,w.clientWidth/1123);s.style.transform="scale("+k+")";w.style.height=(794*k)+"px"}
 window.addEventListener("resize",()=>fitSlide());
+/* ======================= CONSOLE vs BUSINESS CASE: reconciliation ======================= */
+let recY=null;
+function pageRec(){if(!S.bcy)return `<div class="card"><h2>Console vs Business Case</h2><p class="sub">Load the Business Case Excel first (Basic inputs → “Update from the Business Case”).</p><div class="row"><button class="btn" onclick="go('inp')">Go to Basic inputs</button></div></div>`;
+ const m=exModel(),yrs=m.prod.map(i=>m.yrs[i]);let y=recY&&yrs.includes(recY)?recY:m.yrs[m.ss];const i=m.yrs.indexOf(y),k=v=>fm(v/1000,0),sg=v=>(v>0.5?"+":v<-0.5?"−":"")+fm(Math.abs(v)/1000,0);
+ const EXPL={net:{TNG:"Aligned: net sales are read from the Business Case.",ZGZ:"Aligned: net sales are read from the Business Case."},
+  mat:{TNG:"Same BOM by part in console and Business Case. A small gap comes from rounded volumes.",ZGZ:"The Business Case has its own Spanish material sheet (ES_MATERIAL, not yet updated by Juan); the console uses the same BOM as Tangier."},
+  dp:{TNG:"Console: operator-time per piece (cycle time, crew, efficiency) × hourly cost + welfare %. Business Case: headcount by line × average cost + welfare. The two differ when the crews in the console do not match the line headcount.",ZGZ:"Console: crews and times of the Tangier processes × Zaragoza hourly cost. Business Case: its own Spanish headcount (fewer operators). To be solved with the real Zaragoza crews and cycle times."},
+  varc:{TNG:"Console: energy + maintenance + scrap of each process (logistics = 0, packaging and consumables not modelled). Business Case: a % of net sales, kept at the same euro amount in every year.",ZGZ:"Console: energy + maintenance + scrap of each process (logistics = 0, packaging and consumables not modelled). Business Case: a % of net sales, kept at the same euro amount in every year."},
+  fixed:{TNG:"From the Business Case (aligned).",ZGZ:"From the Business Case (aligned)."},ind:{TNG:"From the Business Case (aligned).",ZGZ:"From the Business Case (aligned)."},hq:{TNG:"Business Case rate × net sales (aligned).",ZGZ:"Business Case rate × net sales (aligned)."}};
+ const LN=[["net","Net sales","sales",0],["mat","Material cost","mat",1],["dp","Direct personnel (MOD)","dp",1],["varc","Variable cost","varc",1],["fixed","Fixed cost","fixed",1],["ind","Indirect / admin / management","ind",1],["hq","HQ management fee","hq",1]];
+ const blk=pl=>{const c=m.cols[pl][i],R=kk=>num(((S.bcy.plants[pl].rows[kk])||{})[y]),col=pl==="TNG"?"#c2410c":"#1d4ed8";
+  const bcE=R("ebitda"),gap=c.ebitda-bcE,dm=c.mat-R("mat"),dd=c.dp-R("dp"),dv=c.varc-R("varc");
+  const rows=LN.map(([kk,lb,ck,cost])=>{const cv=c[ck],bv=R(kk),d=cv-bv,rel=bv?d/bv*100:0,bad=cost?d>0:d<0,warn=Math.abs(d)>Math.max(5000,Math.abs(bv)*.01);
+   return `<tr><td><b>${lb}</b></td><td class="n">${k(cv)}</td><td class="n">${k(bv)}</td><td class="n" style="${warn?`font-weight:700;color:${bad?"#b91c1c":"#15803d"}`:""}">${warn?sg(d):"—"}</td><td class="n">${warn?(rel>0?"+":"")+fm(rel,0)+"%":""}</td><td style="font-size:12px;color:#475569;white-space:normal;min-width:340px">${EXPL[kk][pl]}</td></tr>`}).join("");
+  return `<div class="card"><h2 style="color:${col};font-size:22px">${PN[pl]}</h2><table class="tw"><tr><th>Line · ${y}, k€</th><th class="n">Console</th><th class="n">Business Case</th><th class="n">Δ console − BC</th><th class="n">Δ %</th><th>Why it differs</th></tr>${rows}
+   <tr style="background:#f1f5f9"><td><b>EBITDA</b></td><td class="n"><b>${k(c.ebitda)}</b></td><td class="n"><b>${k(bcE)}</b></td><td class="n" style="font-weight:700;color:${gap>0?"#15803d":"#b91c1c"}">${sg(gap)}</td><td class="n">${bcE?(gap/Math.abs(bcE)*100>0?"+":"")+fm(gap/Math.abs(bcE)*100,0)+"%":""}</td><td style="font-size:12px;color:#475569;white-space:normal">Gap explained by: material ${sg(-dm)}, direct personnel ${sg(-dd)}, variable cost ${sg(-dv)} (k€, effect on EBITDA; the other lines are aligned).</td></tr></table></div>`};
+ return `<div class="card"><h2>Console vs Business Case · reconciliation</h2><p class="sub">The console calculates material, direct personnel and variable costs <b>bottom-up</b> (parts × processes × cycle times × hourly rates); net sales, fixed cost, indirect cost and HQ fee come from the Business Case. This page shows, for each year, the lines that do <b>not</b> come from the Business Case and why they differ. Nothing is forced: the console figures are the calculated ones.</p>
+  <div class="row"><label>Year <select style="width:auto" onchange="recY=+this.value;render(true)">${yrs.map(v=>`<option ${v===y?"selected":""}>${v}</option>`).join("")}</select></label></div></div>${blk("TNG")}${blk("ZGZ")}`}
 function pageEX(){if(!S.bcy)return `<div class="card"><h2>Executive summary</h2><p class="sub">The summary uses the Business Case data by year. Load the Business Case Excel first (Basic inputs → “Update from the Business Case”).</p><div class="row"><button class="btn" onclick="go('inp')">Go to Basic inputs</button></div></div>`;
  const m=exModel(),ys=m.prod.map(i=>m.yrs[i]);
  const ctl=`${m.hasHC?"":`<div class="warn" style="background:#fffbeb;border-color:#f59e0b;color:#92400e;font-size:14px">⚠ <b>The people comparison (direct / indirect / admin / managers) is not shown because the Business Case file loaded in the console does not contain the workforce data.</b> Go to Basic inputs → “Update from the Business Case”, select the Business Case Excel again and press Import: the “Workforce structure — headcount” table and the headcount charts then appear on this page. <button class="btn" onclick="go('inp')" style="margin-left:8px">Go to Basic inputs</button></div>`}<div class="card" style="padding:12px 16px"><div class="row" style="gap:12px"><div class="tabs" style="margin:0"><button class="${exView==="ss"?"on C":""}" onclick="exView='ss';render()">Steady state &amp; cumulative</button><button class="${exView==="yoy"?"on C":""}" onclick="exView='yoy';render()">Year by year</button><button class="${exView==="ch"?"on C":""}" onclick="exView='ch';render()">Charts</button></div>
@@ -1244,7 +1267,7 @@ let bProd="ALL",bTo="ZGZ";
 const BCOMP=[["mat","Materials"],["cG","Machine depreciation"],["cI","Maintenance"],["cM","Energy"],["cR","Direct labour"],["cT","Burden (overhead on labour)"],["scrap","Scrap"],["log","Logistics"],["gaA","G&A allocated"]];
 function brgData(id){const out={};for(const pl of PL){const o={};for(const[k]of BCOMP)o[k]=0;o.hours=0;o.vol=0;o.ic=0;o.mod=derived(S.plants[pl].params).mod;
   for(const p of S.products){if(id!=="ALL"&&p.id!==id)continue;const v=p.v[pl],c=pcalc(p,pl),w=id==="ALL"?num(v.volume):1;
-   for(const[k]of BCOMP)o[k]+=w*(c[k]||0);o.hours+=w*(o.mod?c.cR/o.mod:0);o.vol+=w;o.ic+=w*c.ic}
+   for(const[k]of BCOMP)o[k]+=w*(c[k]||0);o.hours+=w*(o.mod?c.cR/(o.mod*wfs(S.plants[pl].params)):0);o.vol+=w;o.ic+=w*c.ic}
   out[pl]=o}return out}
 const FR=to=>to==="TNA"?"ZGZ":"TNG";
 function brgText(d,all,to){const fr=FR(to),T=d[fr],Z=d[to],nm=PN[to],fn=PN[fr],tot=Z.ic+Z.gaA-(T.ic+T.gaA),u=all?"per year":"per piece",f=all?(x=>fm(x/1e3,0)+" k€"):(x=>fm(x,2)+" €");
@@ -1393,7 +1416,7 @@ async function reportPDF(full,onlyId){
 
 /* ======================= ACCESSO, DATI CONDIVISI, SALVATAGGIO ======================= */
 const API=window.ADLER_API||"";
-const BUILD=20261124;let STALE=false,verT=null;
+const BUILD=20261126;let STALE=false,verT=null;
 let TOKEN="",ME=null,REM={},conflicts={},timer=null,busy=false,loaded=false,pendingRender=false,pollT=null;
 try{TOKEN=sessionStorage.getItem("adl_t")||"";ME=JSON.parse(sessionStorage.getItem("adl_u")||"null")}catch(e){}
 const readonly=()=>ME&&ME.ruolo==="viewer";
