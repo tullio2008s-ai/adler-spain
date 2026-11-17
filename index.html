@@ -499,7 +499,7 @@ function salesRows(pl){const rec=!!S.recovery&&!(S._cal&&S._cal[pl]);return S.pr
  if(!c.complete||!(price>0))return{p,ok:false,price,vol,why:!(price>0)?"selling price not defined":"processes not entered"};
  const mat=c.mat,dl=c.cR,vr=c.cM+c.cI+c.scrap+c.log,fx=c.cT+(rec?c.gaA:price*num(S.plants[pl].params.ga)),cm=price-mat-dl-vr,eb=cm-fx;
  return{p,ok:true,price,vol,mat,dl,vr,cm,fx,eb,dep:c.cG}})}
-function salesHTML(){const pls=PL.filter(pl=>pl!=="TNA"),f2=x=>fm(x,2),pc=(x,pr)=>pr?fm(x/pr*100,1)+"%":"",col=x=>x<0?"#b91c1c":"#15803d";
+function salesHTML(){const pls=["TNG"],f2=x=>fm(x,2),pc=(x,pr)=>pr?fm(x/pr*100,1)+"%":"",col=x=>x<0?"#b91c1c":"#15803d";
  const cell=(x,pr,neg)=>`<td style="padding:5px 8px;text-align:right;border-bottom:1px solid #e2e8f0;white-space:nowrap">${f2(x)}<br><span style="font-size:11px;color:${neg&&x<0?"#b91c1c":"#64748b"}">${pc(x,pr)}</span></td>`;
  const th=t=>`<th style="padding:6px 8px;background:#1f3864;color:#fff;text-align:right;font-size:12px;white-space:nowrap">${t}</th>`;
  const sec=pl=>{const R=salesRows(pl);let tr=0,te=0,tc=0;
@@ -1392,7 +1392,7 @@ async function reportPDF(full,onlyId){
 
 /* ======================= ACCESSO, DATI CONDIVISI, SALVATAGGIO ======================= */
 const API=window.ADLER_API||"";
-const BUILD=20261120;let STALE=false,verT=null;
+const BUILD=20261121;let STALE=false,verT=null;
 let TOKEN="",ME=null,REM={},conflicts={},timer=null,busy=false,loaded=false,pendingRender=false,pollT=null;
 try{TOKEN=sessionStorage.getItem("adl_t")||"";ME=JSON.parse(sessionStorage.getItem("adl_u")||"null")}catch(e){}
 const readonly=()=>ME&&ME.ruolo==="viewer";
