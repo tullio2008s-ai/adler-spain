@@ -493,23 +493,23 @@ function pageDash(){const P=S.products,A=tnaOn(),comp={},mar={},rev={};for(const
   <div style="display:flex;flex-direction:column;gap:16px"><div class="card" style="margin:0"><h2>Annual margin by plant (M€)</h2><div class="sub" style="margin:0 0 4px">priced products only</div>${chA}</div>
   <div class="card" style="margin:0"><h2>Margin % by product</h2><div class="sub" style="margin:0 0 4px">(selling price − industrial cost) ÷ selling price${noPrice.length?" · no price: "+esc(noPrice.join(", ")):""}</div>${chM}</div></div></div>
  ${why}
- <div class="row noprint" style="margin-top:14px"><button class="btn" onclick="window.print()">🖨 Print · A4 landscape</button><button class="btn sec" onclick="exportCSV()">⬇ Export table (CSV)</button><button class="btn sec" onclick="salesCopy()">✉ Copy table for e-mail (Tangier)</button><button class="btn sec" onclick="salesExport()">⬇ HTML file</button><button class="btn sec" data-ok="1" onclick="reportPDF(false)">⬇ PDF summary report</button><button class="btn sec" data-ok="1" onclick="reportPDF(true)">⬇ PDF full report</button></div></div>`}
+ <div class="row noprint" style="margin-top:14px"><button class="btn" onclick="window.print()">🖨 Print · A4 landscape</button><button class="btn sec" onclick="exportCSV()">⬇ Export table (CSV)</button><button class="btn sec" onclick="salesCopy()">✉ Copy contribution-margin table for e-mail (Tangier)</button><button class="btn sec" onclick="salesExport()">⬇ HTML file</button><button class="btn sec" data-ok="1" onclick="reportPDF(false)">⬇ PDF summary report</button><button class="btn sec" data-ok="1" onclick="reportPDF(true)">⬇ PDF full report</button></div></div>`}
 /* ======================= HTML table for e-mail (sales colleagues) ======================= */
 function salesRows(pl){const rec=!!S.recovery&&!(S._cal&&S._cal[pl]);return S.products.map(p=>{const c=pcalc(p,pl),v=p.v[pl],price=num(v.price),vol=num(v.volume);
  if(!c.complete||!(price>0))return{p,ok:false,price,vol,why:!(price>0)?"selling price not defined":"processes not entered"};
  const mat=c.mat,dl=c.cR,vr=c.cM+c.cI+c.scrap+c.log,fx=c.cT+(rec?c.gaA:price*num(S.plants[pl].params.ga)),cm=price-mat-dl-vr,eb=cm-fx;
  return{p,ok:true,price,vol,mat,dl,vr,cm,fx,eb,dep:c.cG}})}
 function salesTable(){const pl="TNG",R=salesRows(pl),f2=x=>fm(x,2),pc=(x,pr)=>fm(x/pr*100,0)+"%",col=x=>x<0?"#b91c1c":"#15803d";
- const T='style="padding:3px 6px;border-bottom:1px solid #e2e8f0;text-align:right;white-space:nowrap;font-size:12px"',TL='style="padding:3px 6px;border-bottom:1px solid #e2e8f0;text-align:left;font-size:12px;white-space:nowrap"';
- const c=(x,pr,neg)=>`<td ${T}>${f2(x)} <span style="color:${neg&&x<0?"#b91c1c":"#94a3b8"};font-size:10px">${pc(x,pr)}</span></td>`;
- const H=(t,l)=>`<th style="padding:4px 6px;background:#1f3864;color:#fff;font-size:11px;text-align:${l?"left":"right"};white-space:nowrap">${t}</th>`;
- let tr=0,te=0,tm=0;
- const body=R.map(r=>{if(!r.ok)return `<tr><td ${TL}><b>${esc(r.p.desc)}</b></td><td colspan="7" style="padding:3px 6px;border-bottom:1px solid #e2e8f0;background:#fef3c7;color:#92400e;font-size:11px">${r.why}</td></tr>`;
-  tr+=r.price*r.vol;te+=r.eb*r.vol;tm+=r.cm*r.vol;
-  return `<tr><td ${TL}><b>${esc(r.p.desc)}</b></td><td ${T}><b>${f2(r.price)}</b></td>${c(r.mat,r.price)}${c(r.dl,r.price)}${c(r.vr,r.price)}${c(r.cm,r.price,1)}${c(r.fx,r.price)}<td style="padding:3px 6px;border-bottom:1px solid #e2e8f0;text-align:right;white-space:nowrap;font-size:12px;background:${r.eb<0?"#fee2e2":"#dcfce7"};color:${col(r.eb)}"><b>${f2(r.eb)}</b> <span style="font-size:10px">${pc(r.eb,r.price)}</span></td></tr>`}).join("");
+ const T='style="padding:3px 7px;border-bottom:1px solid #e2e8f0;text-align:right;white-space:nowrap;font-size:12px"',TL='style="padding:3px 7px;border-bottom:1px solid #e2e8f0;text-align:left;font-size:12px;white-space:nowrap"';
+ const c=(x,pr)=>`<td ${T}>${f2(x)} <span style="color:#94a3b8;font-size:10px">${pc(x,pr)}</span></td>`;
+ const H=(t,l)=>`<th style="padding:4px 7px;background:#1f3864;color:#fff;font-size:11px;text-align:${l?"left":"right"};white-space:nowrap">${t}</th>`;
+ let tr=0,tm=0;
+ const body=R.map(r=>{if(!r.ok)return `<tr><td ${TL}><b>${esc(r.p.desc)}</b></td><td colspan="5" style="padding:3px 7px;border-bottom:1px solid #e2e8f0;background:#fef3c7;color:#92400e;font-size:11px">${r.why}</td></tr>`;
+  tr+=r.price*r.vol;tm+=r.cm*r.vol;
+  return `<tr><td ${TL}><b>${esc(r.p.desc)}</b></td><td ${T}><b>${f2(r.price)}</b></td>${c(r.mat,r.price)}${c(r.dl,r.price)}${c(r.vr,r.price)}<td style="padding:3px 7px;border-bottom:1px solid #e2e8f0;text-align:right;white-space:nowrap;font-size:12px;background:${r.cm<0?"#fee2e2":"#dcfce7"};color:${col(r.cm)}"><b>${f2(r.cm)}</b> <span style="font-size:10px">${pc(r.cm,r.price)}</span></td></tr>`}).join("");
  const date=new Date().toLocaleDateString("en-GB");
- return `<table cellspacing="0" cellpadding="0" style="border-collapse:collapse;font-family:Arial,Helvetica,sans-serif;color:#1e293b;width:720px"><tr><td colspan="8" style="padding:0 0 4px;font-size:14px"><b>CX735 · Tangier · profitability by part</b> <span style="font-size:11px;color:#64748b">(€ per piece · % of selling price · ${date})</span></td></tr><tr>${H("Part",1)}${H("Price")}${H("Material")}${H("Direct<br>labour")}${H("Variable<br>costs")}${H("Contribution<br>margin")}${H("Fixed costs<br>+ G&amp;A")}${H("EBITDA")}</tr>${body}</table>
-<p style="font-family:Arial,Helvetica,sans-serif;font-size:11px;color:#475569;margin:6px 0 0;width:720px">Priced parts total: sales ${fm(tr/1000,0)} k€, EBITDA <b style="color:${col(te)}">${fm(te/1000,0)} k€ (${tr?fm(te/tr*100,1):"0"}%)</b>, steady-state volumes. EBITDA = price − material − direct labour − variable costs (energy, maintenance, scrap, logistics) − fixed costs and G&amp;A charged to the part, before machine depreciation. Allocation: ${S.recovery?"fixed costs charged to the parts sold (burden on direct labour, G&amp;A on industrial cost, calibrated to 100% of the plant costs)":"hourly process rates as in the ADLER cost file (burden = rate × direct labour of the process hour, G&amp;A = "+fm(num(S.plants.TNG.params.ga)*100,0)+"% of the price)"}.</p>`}
+ return `<table cellspacing="0" cellpadding="0" style="border-collapse:collapse;font-family:Arial,Helvetica,sans-serif;color:#1e293b;width:560px"><tr><td colspan="6" style="padding:0 0 4px;font-size:14px"><b>CX735 · Tangier · contribution margin by part</b> <span style="font-size:11px;color:#64748b">(€ per piece · % of selling price · ${date})</span></td></tr><tr>${H("Part",1)}${H("Price")}${H("Material")}${H("Direct<br>labour")}${H("Variable<br>costs")}${H("Contribution<br>margin")}</tr>${body}</table>
+<p style="font-family:Arial,Helvetica,sans-serif;font-size:11px;color:#475569;margin:6px 0 0;width:560px">Priced parts total, steady-state volumes: sales ${fm(tr/1000,0)} k€, contribution margin <b style="color:${col(tm)}">${fm(tm/1000,0)} k€ (${tr?fm(tm/tr*100,1):"0"}%)</b>. Contribution margin = price − material − direct labour − variable costs (energy, maintenance, scrap, logistics). Plant fixed costs and G&amp;A are not allocated to the parts.</p>`}
 function salesHTML(){return `<!DOCTYPE html><html><head><meta charset="utf-8"><title>CX735 profitability by part</title></head><body style="margin:14px">${salesTable()}</body></html>`}
 async function salesCopy(){const h=salesTable();try{await navigator.clipboard.write([new ClipboardItem({"text/html":new Blob([h],{type:"text/html"}),"text/plain":new Blob([h.replace(/<[^>]+>/g," ")],{type:"text/plain"})})]);alert("Table copied. Open your e-mail and paste it (Ctrl+V / Cmd+V).")}catch(e){salesExport();alert("Copy not available in this browser: the HTML file was downloaded instead. Open it and copy the table.")}}
 function salesExport(){const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([salesHTML()],{type:"text/html"}));a.download="CX735_profitability_by_part_"+new Date().toISOString().slice(0,10)+".html";a.click()}
@@ -1393,7 +1393,7 @@ async function reportPDF(full,onlyId){
 
 /* ======================= ACCESSO, DATI CONDIVISI, SALVATAGGIO ======================= */
 const API=window.ADLER_API||"";
-const BUILD=20261123;let STALE=false,verT=null;
+const BUILD=20261124;let STALE=false,verT=null;
 let TOKEN="",ME=null,REM={},conflicts={},timer=null,busy=false,loaded=false,pendingRender=false,pollT=null;
 try{TOKEN=sessionStorage.getItem("adl_t")||"";ME=JSON.parse(sessionStorage.getItem("adl_u")||"null")}catch(e){}
 const readonly=()=>ME&&ME.ruolo==="viewer";
