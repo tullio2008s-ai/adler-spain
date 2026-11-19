@@ -190,6 +190,15 @@ function opCalc(o,pl,st=S){const P=st.plants[pl].params,F=st.plants[pl].flags,D=
  const L=num(o.cycle)/(num(o.eff)||1)/(num(o.cav)||1),rate=G+I+M+R+T,f=L/3600;
  const heads=hasCrew?num(o.crew):(m?num(m.workers):num(o.cav));
  return{L,rate,N:f*rate,G,I,M,R,T,nG:f*G,nI:f*I,nM:f*M,nR:f*R,nR0:f*R0,nT:f*T,heads,hasCrew,mname:m?m.name:"Manual DL",gu:mr?mr.gu:0,carry:!!m||!!F.burdenManual}}
+/* product sheet: line cycle time and direct operators of the line */
+function lineBott(p,pl){let b=null;for(const o of (p.v[pl].ops||[])){const cav=num(o.cav)||1,t=num(o.cycle)/cav;if(num(o.cycle)>0&&(!b||t>b.t))b={t,cyc:num(o.cycle),cav,eff:num(o.eff),name:o.desc}}return b}
+function lineCycVal(p,pl){const b=lineBott(p,pl);return b?fm(b.cyc,0)+" s":"—"}
+function lineCycSub(p,pl){const b=lineBott(p,pl);return b?esc(b.name)+" · efficiency "+fm((b.eff||0)*100,0)+"%"+(b.cav>1?" · "+fm(b.cav,0)+" pieces per cycle":""):"no operation entered"}
+function lineOpsVal(p,pl){return fm(pcalc(p,pl).heads,0)}
+function lineOpsSub(p,pl){const h=pcalc(p,pl).heads,sh=num(S.plants[pl].params.shifts)||3;return "per shift · × "+fm(sh,0)+" shifts = <u>"+fm(h*sh,0)+"</u> over the day (crew of every process of the route)"}
+function lineBC(p,pl){const C=S.bcy&&S.bcy.cmp;if(!C||!C.lines)return null;const x=C.parts.find(q=>bcpMatch({desc:q.desc,code:q.code})===p);if(!x)return null;const L=C.lines[x.line];if(!L)return null;const hc=pl==="TNG"?L.TNG:L.ZGZ,n=C.parts.filter(q=>q.line===x.line).length;return{line:x.line,hc,n}}
+function lineBCVal(p,pl){const b=lineBC(p,pl);return b&&isFinite(b.hc)?fm(b.hc,0):"—"}
+function lineBCSub(p,pl){const b=lineBC(p,pl);if(!b||!isFinite(b.hc))return S.bcy&&S.bcy.cmp?"part not found in the Business Case":"load the Business Case v7 (Basic inputs) to see it";const sh=num(S.plants[pl].params.shifts)||3;return "operators on the "+esc(b.line)+" line over the day (shared by "+b.n+" part"+(b.n>1?"s":"")+") · "+fm(b.hc/sh,1)+" per shift"}
 function pcalc(p,pl,st=S){const P=st.plants[pl].params,D=derived(P),v=p.v[pl],c={bomRows:[],opRows:[],mat:0,conv:0};
  const mcx=mcOn(p);if(mcx){const m=mcCalc(p.mc,st);c.mcRows=m.rows;c.mat=m.total;c.matNet=m.mat;c.matScrap=m.scrap;c.matMoh=m.moh}else for(const b of p.bom){const m=st.materials.find(x=>x.id===b.matId);const r=m?num(m.cost[pl==='TNA'?'ZGZ':pl])*num(b.qty):0;c.bomRows.push(r);c.mat+=r}
  const mkz=(pl==="ZGZ"||pl==="TNA")?(num((p.v.ZGZ||{}).matK)||1):1;if(mkz!==1){c.mat*=mkz;if(c.matNet!=null){c.matNet*=mkz;c.matScrap*=mkz;c.matMoh*=mkz}}
@@ -753,10 +762,11 @@ let bcMode="years",bcyBasis="bc",BCYMSG="";
 function bcyCM(wb){const ws=wb.Sheets["CM_by_part"];if(!ws||!ws["!ref"])return null;const rg=XLSX.utils.decode_range(ws["!ref"]);rg.s.c=0;rg.s.r=0;const g=XLSX.utils.sheet_to_json(ws,{header:1,defval:null,range:rg,raw:true}),nn=v=>{const x=typeof v==="number"?v:parseFloat(String(v).replace(/,/g,""));return isFinite(x)?x:NaN};
  const at=re=>g.findIndex(r=>r&&typeof r[1]==="string"&&re.test(r[1].trim())),i1=at(/^1\.\s*drivers/i),i3=at(/^3\.\s*morocco/i),i4=at(/^4\.\s*spain/i);if(i1<0||i3<0||i4<0)return null;
  const rows=i0=>{const o=[];for(let i=i0+2;i<g.length;i++){const r=g[i];if(!r||typeof r[2]!=="string"||/^total/i.test(r[2].trim()))break;o.push(r)}return o};
+ const i2=at(/^2\.\s*mod by production line/i),lines={};if(i2>=0)for(const r of rows(i2)){const a=nn(r[3]),b=nn(r[4]);if(isFinite(a)||isFinite(b))lines[r[2].trim()]={TNG:a,ZGZ:b,pcs:nn(r[5])}}
  const D=rows(i1),M=rows(i3),Z=rows(i4),mp={};for(const r of M)mp[r[2].trim()]=r;const zp={};for(const r of Z)zp[r[2].trim()]=r;
  const t=(g[2]||[]).concat(g[3]||[]).join(" "),ym=/steady state\s*(\d{4})/i.exec(t),parts=[];
  for(const r of D){const d=r[2].trim(),m=mp[d],z=zp[d];if(!m||!z)continue;const q=x=>({sales:nn(x[3]),mat:nn(x[4]),mod:nn(x[5]),varc:nn(x[6])});parts.push({desc:d,code:String(r[3]||""),line:String(r[4]||""),vol:nn(r[5]),sp:nn(r[6]),TNG:q(m),ZGZ:q(z)})}
- return parts.length?{year:ym?+ym[1]:null,parts}:null}
+ return parts.length?{year:ym?+ym[1]:null,parts,lines}:null}
 const BCY_MAP=[["sales",/^sales ford/i],["net",/^net sales$/i],["mat",/^material cost$/i],["dp",/^direct personnel cost/i],["cm1",/^contribution margin i$/i],["varc",/^variable cost$/i],["cm2",/^contribution margin ii$/i],["fixed",/^fixed cost$/i],["ind",/^indirect \/ admin/i],["mp",/^manufacturing profit$/i],["sub",/^\+\s*anapec/i],["hq",/^-\s*hq management fee/i],["ebitda",/^ebitda$/i],["da",/^depreciation/i],["ebit",/^ebit$/i],["fin",/^financing costs/i],["ebt",/^ebt\b(?!\s*%)/i],["tax",/^corporate tax$/i],["netinc",/^net income$/i]];
 function bcyParse(wb){const out={years:null,plants:{}},plan=[["TNG","","Tangier"],["ZGZ","ES_","Zaragoza"]];
  const grid=n=>{const ws=wb.Sheets[n];if(!ws||!ws["!ref"])return null;const rg=XLSX.utils.decode_range(ws["!ref"]);rg.s.c=0;rg.s.r=0;return XLSX.utils.sheet_to_json(ws,{header:1,defval:null,range:rg,raw:true})};
@@ -1209,6 +1219,9 @@ function pagePD(){const p=S.products.find(x=>x.id===selProd);if(!p){page="prd";r
  <div data-w="wMargin(${C})"><span>Margin (price − ind. cost)</span><b>${S_(`${C}.hasPrice?fm(${C}.margin,4)+' €':'enter price'`)}</b><small>${S_(`fp(${C}.marginPct)+' of price'`)}</small></div>
  <div data-w="wMarginGA(${C})"><span>Margin after G&A</span><b>${S_(`${C}.hasPrice?fm(${C}.afterGA,4)+' €':'—'`)}</b><small>${S_(`fp(${C}.afterGApct)`)}</small></div>
  <div><span>Annual margin</span><b>${S_(`${C}.hasPrice?fm(${C}.margin*${num(v.volume)}/1000,1)+' k€':'—'`)}</b><small>volume × margin</small></div></div>
+ <div class="kpi" style="border-left:4px solid var(--acc)"><div style="background:#eff6ff"><span>Cycle time of the line</span><b style="font-size:30px" data-c="lineCycVal(S.products[${ix}],'${pl}')"></b><small data-c="lineCycSub(S.products[${ix}],'${pl}')"></small></div>
+ <div style="background:#eff6ff"><span>Direct operators on the line (console)</span><b style="font-size:30px" data-c="lineOpsVal(S.products[${ix}],'${pl}')"></b><small data-c="lineOpsSub(S.products[${ix}],'${pl}')"></small></div>
+ <div style="background:#f8fafc"><span>Direct operators · Business Case</span><b style="font-size:30px" data-c="lineBCVal(S.products[${ix}],'${pl}')"></b><small data-c="lineBCSub(S.products[${ix}],'${pl}')"></small></div></div>
  <div class="kpi"><div><span>Operators in the route</span><b>${S_(`fm(${C}.heads,2)`)}</b><small>sum of the crew of each process</small></div>
  <div><span>Direct labour time / pc</span><b>${S_(`fm(${C}.dlMin,2)+' min'`)}</b><small>operators × reference time</small></div>
  <div><span>Direct labour / pc</span><b>${S_(`fm(${C}.cR,3)+' €'`)}</b><small>${S_(`fp(${C}.cR/${C}.ic)+' of industrial cost'`)}</small></div>
@@ -1487,7 +1500,7 @@ async function reportPDF(full,onlyId){
 
 /* ======================= ACCESSO, DATI CONDIVISI, SALVATAGGIO ======================= */
 const API=window.ADLER_API||"";
-const BUILD=20261128;let STALE=false,verT=null;
+const BUILD=20261129;let STALE=false,verT=null;
 let TOKEN="",ME=null,REM={},conflicts={},timer=null,busy=false,loaded=false,pendingRender=false,pollT=null;
 try{TOKEN=sessionStorage.getItem("adl_t")||"";ME=JSON.parse(sessionStorage.getItem("adl_u")||"null")}catch(e){}
 const readonly=()=>ME&&ME.ruolo==="viewer";
